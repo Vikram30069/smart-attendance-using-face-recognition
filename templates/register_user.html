@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+
+{% block title %}Register User{% endblock %}
+
+{% block nav %}
+    <a href="{% url 'dashboard' %}" class="secondary-button">Dashboard</a>
+    <a href="{% url 'logout' %}" class="secondary-button">Logout</a>
+{% endblock %}
+
+{% block content %}
+    <div class="card form-card">
+        <h1>Register User</h1>
+        <p>Create a new student or teacher account with a face image registration.</p>
+        
+        {% if messages %}
+            <div class="alert-container">
+                {% for message in messages %}
+                    <div class="alert {% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'register_user' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <label>Role</label>
+            <select name="role" id="roleSelect" required onchange="updateRoleFields()">
+                <option value="student" {% if role == 'student' %}selected{% endif %}>Student</option>
+                <option value="teacher" {% if role == 'teacher' %}selected{% endif %}>Teacher</option>
+            </select>
+
+            <label>Name</label>
+            <input type="text" name="name" value="{{ name|default:'' }}" required />
+
+            <label>Email</label>
+            <input type="email" name="email" value="{{ email|default:'' }}" required />
+
+            <label>Username</label>
+            <input type="text" name="username" value="{{ username|default:'' }}" required />
+
+            <label>Password</label>
+            <input type="password" name="password" id="passwordInput" required placeholder="Enter a strong password" oninput="validatePassword()" />
+            <div class="password-strength-container" style="margin-top: 8px;">
+                <div class="strength-bar-bg" style="background: #e2e8f0; height: 6px; border-radius: 3px; overflow: hidden;">
+                    <div id="strengthBar" style="width: 0%; height: 100%; transition: width 0.3s, background-color 0.3s;"></div>
+                </div>
+                <small id="strengthText" style="color: #64748b; display: block; margin-top: 4px; font-weight: 500;">Password must be at least 8 characters with upper, lower, numbers, and symbols.</small>
+            </div>
+
+            <label>Roll Number / ID</label>
+            <input type="text" name="roll_number" value="{{ roll_number|default:'' }}" required />
+
+            <label>Department</label>
+            <input type="text" name="department" value="{{ department|default:'' }}" required />
+
+            <div id="designationField" style="background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 20px;">
+                <h3 style="margin-top: 0; font-size: 1.1rem; color: #4f46e5;">👨‍🏫 Teacher Specific Details</h3>
+                <label style="margin-top: 0;">Designation / Subject</label>
+                <input type="text" name="designation" value="{{ designation|default:'' }}" placeholder="Example: Lecturer, Assistant Professor, Tutor" />
+            </div>
+
+            <div id="sectionFields" style="background: #f8fafc; padding: 16px; border-radius: 12px; border: 1px solid #e2e8f0; margin-top: 20px;">
+                <h3 style="margin-top: 0; font-size: 1.1rem; color: #4f46e5;">🎓 Student Specific Details</h3>
+                <label style="margin-top: 0;">Student Section</label>
+                <select name="section_id" id="sectionSelect">
+                    <option value="">Select Section</option>
+                    {% for section in sections %}
+                    <option value="{{ section.id }}" {% if section_id == section.id %}selected{% endif %}>{{ section.section_name }} - {{ section.year }} ({{ section.department }})</option>
+                    {% endfor %}
+                </select>
+
+                <label>Year of Study</label>
+                <select name="year_of_study" id="yearOfStudy">
+                    <option value="" {% if not year_of_study %}selected{% endif %}>Use Section Year</option>
+                    <option value="1st Year" {% if year_of_study == '1st Year' %}selected{% endif %}>1st Year</option>
+                    <option value="2nd Year" {% if year_of_study == '2nd Year' %}selected{% endif %}>2nd Year</option>
+                    <option value="3rd Year" {% if year_of_study == '3rd Year' %}selected{% endif %}>3rd Year</option>
+                    <option value="4th Year" {% if year_of_study == '4th Year' %}selected{% endif %}>4th Year</option>
+                </select>
+            </div>
+
+            <label>Face Images</label>
+            <input type="file" name="face_images" accept="image/*" multiple required />
+            <small>Upload 1–5 images from different angles for better recognition.</small>
+
+            <button type="submit" class="primary-button" id="submitBtn" style="margin-top: 24px;">Register User</button>
+        </form>
+
+        <script>
+            function updateRoleFields() {
+                const role = document.getElementById('roleSelect').value;
+                document.getElementById('designationField').style.display = role === 'teacher' ? 'block' : 'none';
+                document.getElementById('sectionFields').style.display = role === 'student' ? 'block' : 'none';
+                
+                // Clear required attributes for fields that are hidden
+                const sectionSelect = document.getElementById('sectionSelect');
+                if (role === 'student') {
+                    sectionSelect.setAttribute('required', 'required');
+                } else {
+                    sectionSelect.removeAttribute('required');
+                }
+            }
+            updateRoleFields();
+
+            function validatePassword() {
+                const password = document.getElementById('passwordInput').value;
+                const bar = document.getElementById('strengthBar');
+                const txt = document.getElementById('strengthText');
+                
+                let score = 0;
+                if (password.length >= 8) score++;
+                if (/[a-z]/.test(password)) score++;
+                if (/[A-Z]/.test(password)) score++;
+                if (/[0-9]/.test(password)) score++;
+                if (/[!@#$%^&*()-_=+\[\]{};:'",.<>\/?|`~]/.test(password)) score++;
+                
+                let width = "0%";
+                let color = "#ef4444";
+                let text = "Weak password";
+                
+                if (score === 0 && password.length === 0) {
+                    width = "0%";
+                    text = "Password is required.";
+                } else if (score < 3) {
+                    width = "30%";
+                    color = "#ef4444";
+                    text = "Weak - Add upper/lower case, numbers, or symbols.";
+                } else if (score < 5) {
+                    width = "65%";
+                    color = "#f59e0b";
+                    text = "Medium - Add more characters or special symbols.";
+                } else {
+                    width = "100%";
+                    color = "#10b981";
+                    text = "Strong password! ✓";
+                }
+                
+                bar.style.width = width;
+                bar.style.backgroundColor = color;
+                txt.textContent = text;
+                txt.style.color = color;
+            }
+        </script>
+    </div>
+{% endblock %}

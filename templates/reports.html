@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+
+{% block title %}Attendance Reports{% endblock %}
+
+{% block nav %}
+    <a href="{% url 'dashboard' %}" class="secondary-button">Dashboard</a>
+    <a href="{% url 'logout' %}" class="secondary-button">Logout</a>
+{% endblock %}
+
+{% block content %}
+    <!-- Hidden print headers -->
+    <div class="print-reports-header-only" style="display: none; margin-bottom: 24px; border-bottom: 2px solid #334155; padding-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <h1 style="margin: 0; font-size: 2rem; font-weight: 800; color: #0f172a;">Attendance Summary Report</h1>
+                <p style="margin: 4px 0 0 0; color: #475569; font-size: 1.1rem;">Section: <strong><span id="print-reports-classname">All Sections</span></strong></p>
+            </div>
+            <div style="text-align: right;">
+                <p style="margin: 0; font-size: 0.9rem; color: #64748b;">Role: <strong>Admin Dashboard</strong></p>
+                <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: #64748b;">Printed on: <span class="current-print-date"></span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section Filter Dropdown -->
+    <div class="page-card" style="margin-bottom: 24px; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <form method="get" action="{% url 'reports' %}" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0;">
+            <label for="sectionFilter" style="margin: 0; font-weight: 700; font-size: 1.05rem; color: var(--text-main);">Select Section View:</label>
+            <select id="sectionFilter" name="section_id" onchange="this.form.submit()" style="max-width: 320px; padding: 10px 14px; margin: 0; font-size: 0.95rem;">
+                <option value="">Show All Sections</option>
+                {% for section in sections %}
+                <option value="{{ section.id }}" {% if section.id == selected_section_id %}selected{% endif %}>{{ section.section_name }} ({{ section.year }} - {{ section.department }})</option>
+                {% endfor %}
+            </select>
+        </form>
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <a href="{% url 'admin_download_reports' %}{% if selected_section_id %}?section_id={{ selected_section_id }}{% endif %}" class="secondary-button" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: #0284c7; background: #fff; border: 1px solid #cbd5e1; padding: 8px 16px; border-radius: 8px; font-size: 0.9rem; transition: all 0.2s;">
+                📥 Download CSV
+            </a>
+            <button type="button" class="secondary-button" onclick="printReports()" style="display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: #475569; background: #fff; border: 1px solid #cbd5e1; padding: 8px 16px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; transition: all 0.2s;">
+                🖨️ Print Reports
+            </button>
+        </div>
+    </div>
+
+    <div class="page-card" id="reports-print-section">
+        <h1>Attendance Reports</h1>
+        <p>Review attendance percentages and defaulter lists for all registered students.</p>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Roll</th>
+                        <th>Department</th>
+                        <th>Section</th>
+                        <th>Present</th>
+                        <th>Total</th>
+                        <th>%</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in report_rows %}
+                    <tr>
+                        <td><strong>{{ row.name }}</strong></td>
+                        <td>{{ row.roll_number }}</td>
+                        <td>{{ row.department }}</td>
+                        <td>
+                            <span class="status-badge" style="background: #f1f5f9; color: #475569; font-weight: 600; font-size: 0.8rem; padding: 4px 8px; border-radius: 6px;">
+                                {{ row.section_name }}
+                            </span>
+                        </td>
+                        <td>{{ row.present }}</td>
+                        <td>{{ row.total }}</td>
+                        <td>
+                            <span class="status-badge {% if row.percentage >= 75 %}present{% else %}absent{% endif %}" style="font-size: 0.8rem; font-weight: 700; padding: 4px 8px; border-radius: 6px;">
+                                {{ row.percentage }}%
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7">No students available.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="page-card" id="defaulters-print-section">
+        <h2>Defaulter List (Below 75%)</h2>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Roll</th>
+                        <th>Department</th>
+                        <th>Section</th>
+                        <th>Percentage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in low_attendance %}
+                    <tr>
+                        <td><strong>{{ row.name }}</strong></td>
+                        <td>{{ row.roll_number }}</td>
+                        <td>{{ row.department }}</td>
+                        <td>
+                            <span class="status-badge" style="background: #fee2e2; color: #ef4444; font-weight: 600; font-size: 0.8rem; padding: 4px 8px; border-radius: 6px;">
+                                {{ row.section_name }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="status-badge absent" style="font-size: 0.8rem; font-weight: 700; padding: 4px 8px; border-radius: 6px;">
+                                {{ row.percentage }}%
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5">No low attendance records.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+<script>
+    function printReports() {
+        document.querySelectorAll('.current-print-date').forEach(el => {
+            el.textContent = new Date().toLocaleString();
+        });
+        const filterSelect = document.getElementById('sectionFilter');
+        const printClassName = document.getElementById('print-reports-classname');
+        if (filterSelect && printClassName) {
+            printClassName.textContent = filterSelect.options[filterSelect.selectedIndex].text;
+        }
+        window.print();
+    }
+</script>
+
+<style>
+    @media print {
+        body {
+            background: #fff !important;
+            color: #000 !important;
+            font-family: 'Inter', system-ui, sans-serif !important;
+        }
+        /* Hide all UI layout elements */
+        header, footer, nav, .sidebar, .page-card:not(#reports-print-section):not(#defaulters-print-section) {
+            display: none !important;
+        }
+        .print-reports-header-only {
+            display: block !important;
+        }
+        #reports-print-section, #defaulters-print-section {
+            display: block !important;
+            margin: 0 0 30px 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            background: transparent !important;
+        }
+        h1, h2, p {
+            margin: 0 0 10px 0 !important;
+            color: #000 !important;
+        }
+        h2 {
+            font-size: 1.5rem !important;
+            font-weight: 700 !important;
+            margin-top: 20px !important;
+        }
+        /* Tables layout rules */
+        table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin-top: 15px !important;
+            page-break-inside: auto !important;
+        }
+        tr {
+            page-break-inside: avoid !important;
+            page-break-after: auto !important;
+        }
+        th, td {
+            border: 1px solid #cbd5e1 !important;
+            padding: 10px !important;
+            font-size: 10pt !important;
+            text-align: left !important;
+            color: #000 !important;
+            background: #fff !important;
+        }
+        th {
+            font-weight: bold !important;
+            background-color: #f1f5f9 !important;
+        }
+        @page {
+            size: A4 portrait;
+            margin: 15mm;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,336 @@
+{% extends 'base.html' %}
+
+{% block title %}Student Dashboard{% endblock %}
+
+{% block nav %}
+    <span class="nav-user" style="display: inline-flex; align-items: center; gap: 8px;">
+        <span style="font-size: 1.2rem;">🎓</span> {{ user.name }} ({{ user.roll_number }})
+    </span>
+    <span class="status-badge" style="background: #e0f2fe; color: #0369a1; border-radius: 20px; font-weight: 700; padding: 4px 12px; font-size: 0.8rem;">
+        {{ section.section_name }}
+    </span>
+    <button class="notification-bell" id="notificationBell" style="position: relative; background: none; border: none; font-size: 1.4rem; cursor: pointer; padding: 4px 8px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background 0.2s;">
+        🔔
+        <span class="notification-badge" id="notificationBadge" style="display:none; position: absolute; top: -2px; right: -2px; background: #ef4444; color: white; font-size: 0.65rem; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700;">0</span>
+    </button>
+    <a href="{% url 'logout' %}" class="secondary-button" style="padding: 8px 16px; font-size: 0.85rem;">Logout</a>
+{% endblock %}
+
+{% block content %}
+    <!-- Notification Toast Container -->
+    <div id="notificationContainer" class="notification-container" style="position: fixed; top: 80px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 12px; max-width: 400px; width: calc(100% - 40px);"></div>
+
+    <div class="student-dashboard">
+        
+        <!-- Student Header Profile Card -->
+        <div class="welcome-header" style="margin-bottom: 28px; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; padding: 32px; border-radius: 20px; box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 24px;">
+            <div style="flex: 1; min-width: 250px;">
+                <h1 style="margin: 0; color: white; font-size: 2.2rem; font-weight: 800;">Hey, {{ user.name }}!</h1>
+                <p style="margin: 8px 0 0 0; color: #bfdbfe; font-size: 1.05rem;">Keep track of your classes and log your attendance securely with face recognition.</p>
+                <div style="margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap;">
+                    <span style="background: rgba(255,255,255,0.15); padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">📍 Geofence Enabled</span>
+                    <span style="background: rgba(255,255,255,0.15); padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 600;">⚡ Liveness Check Active</span>
+                </div>
+            </div>
+
+            <!-- Circular Attendance Rate Graph -->
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.1); padding: 18px 24px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.15); min-width: 160px; box-sizing: border-box;">
+                <div class="circular-progress" style="position: relative; width: 90px; height: 90px; display: flex; align-items: center; justify-content: center;">
+                    <svg style="width: 90px; height: 90px; transform: rotate(-90deg);">
+                        <circle cx="45" cy="45" r="38" stroke="rgba(255,255,255,0.2)" stroke-width="8" fill="transparent" />
+                        <circle cx="45" cy="45" r="38" stroke="#ffffff" stroke-width="8" fill="transparent" 
+                                stroke-dasharray="238.76" 
+                                stroke-dashoffset="{{ stroke_dashoffset }}"
+                                style="transition: stroke-dashoffset 1s ease-in-out;" />
+                    </svg>
+                    <div style="position: absolute; font-size: 1.25rem; font-weight: 800; color: white;">
+                        {{ attendance_percentage }}%
+                    </div>
+                </div>
+                <span style="color: #bfdbfe; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; margin-top: 10px; letter-spacing: 0.5px;">Attendance Rate</span>
+            </div>
+        </div>
+
+        <!-- Sticky Active Session Notification Banner -->
+        {% if active_session %}
+            {% if already_marked %}
+            <section class="active-session-banner" style="margin-bottom: 28px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #22c55e; border-radius: 20px; padding: 24px; box-shadow: 0 10px 20px rgba(34, 197, 94, 0.05);">
+                <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+                    <div style="font-size: 3rem;">✅</div>
+                    <div style="flex: 1; min-width: 250px;">
+                        <span style="background: #22c55e; color: white; font-weight: 800; font-size: 0.75rem; text-transform: uppercase; padding: 4px 10px; border-radius: 12px; display: inline-block; margin-bottom: 6px;">Attendance Completed</span>
+                        <h2 style="margin: 0; color: #15803d; font-size: 1.45rem; font-weight: 800;">{{ active_session.subject }} - Marked!</h2>
+                        <p style="margin: 6px 0 0 0; color: #166534; font-size: 0.95rem;">
+                            Your attendance has been successfully recorded for this session. Excellent work!
+                        </p>
+                    </div>
+                </div>
+            </section>
+            {% else %}
+            <section class="active-session-banner" style="margin-bottom: 28px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 2px solid #10b981; border-radius: 20px; padding: 24px; box-shadow: 0 10px 20px rgba(16, 185, 129, 0.08); animation: pulseGreen 2s infinite alternate;">
+                <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+                    <div style="font-size: 3rem; animation: bounce 1.5s infinite;">🔔</div>
+                    <div style="flex: 1; min-width: 250px;">
+                        <span style="background: #10b981; color: white; font-weight: 800; font-size: 0.75rem; text-transform: uppercase; padding: 4px 10px; border-radius: 12px; display: inline-block; margin-bottom: 6px;">Live Attendance Session</span>
+                        <h2 style="margin: 0; color: #065f46; font-size: 1.45rem; font-weight: 800;">{{ active_session.subject }} is live!</h2>
+                        <p style="margin: 6px 0 0 0; color: #047857; font-size: 0.95rem;">
+                            Started by <strong>{{ active_session.teacher_name }}</strong> in room <strong>{{ active_session.room }}</strong>. Expiring soon!
+                        </p>
+                    </div>
+                    <a href="{% url 'mark_attendance_page' %}" class="primary-button" style="background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 14px 28px; font-weight: 700; border-radius: 12px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.25);">
+                        Mark Attendance Now
+                    </a>
+                </div>
+            </section>
+            {% endif %}
+        {% else %}
+        <section style="margin-bottom: 28px; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 20px; padding: 18px 24px; display: flex; align-items: center; gap: 12px; color: #b45309;">
+            <span style="font-size: 1.5rem;">ℹ️</span>
+            <p style="margin: 0; font-size: 0.95rem; font-weight: 600; color: #b45309;">No active attendance sessions at the moment. Keep this page open; you will receive a notification as soon as your teacher starts class.</p>
+        </section>
+        {% endif %}
+
+        <!-- Lower Grid: Left Schedule, Right Logs -->
+        <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px; align-items: start;">
+            
+            <!-- Left Side: Today's Schedule & Weekly Schedule -->
+            <div style="display: flex; flex-direction: column; gap: 24px;">
+                
+                <!-- Today's Schedule -->
+                <section class="page-card" style="padding: 24px; margin: 0;">
+                    <h2 style="font-size: 1.25rem; display: flex; align-items: center; gap: 8px;">
+                        📅 Today's Classes
+                    </h2>
+                    <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 18px;">
+                        {% for schedule in today_schedule %}
+                        <div style="display: flex; border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; align-items: center; gap: 16px; background: {% if active_session and schedule.id == active_session.class_schedule_id %}#ecfdf5{% else %}#ffffff{% endif %}; border-left: 5px solid {% if active_session and schedule.id == active_session.class_schedule_id %}#10b981{% else %}#3b82f6{% endif %};">
+                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; text-align: center; min-width: 70px;">
+                                <div style="font-size: 0.85rem; font-weight: 800; color: #1e293b;">{{ schedule.start_time }}</div>
+                                <div style="font-size: 0.7rem; color: #64748b; font-weight: 600; margin-top: 2px;">{{ schedule.end_time }}</div>
+                            </div>
+                            <div style="flex: 1;">
+                                <h3 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: #0f172a;">{{ schedule.subject }}</h3>
+                                <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b;">
+                                    👨‍🏫 {{ schedule.teacher_name|default:'N/A' }} | 📍 Room: {{ schedule.room }}
+                                </p>
+                            </div>
+                            <div>
+                                {% if active_session and schedule.id == active_session.class_schedule_id %}
+                                <span class="status-badge active" style="background: #d1fae5; color: #065f46; font-size: 0.75rem; font-weight: 700; border-radius: 10px; padding: 4px 10px;">Active</span>
+                                {% else %}
+                                <span class="status-badge" style="background: #f1f5f9; color: #64748b; font-size: 0.75rem; font-weight: 700; border-radius: 10px; padding: 4px 10px;">Upcoming</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p style="text-align: center; color: #94a3b8; padding: 12px 0;">No classes scheduled for today.</p>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <!-- Weekly Timetable -->
+                <section class="page-card" style="padding: 24px; margin: 0;">
+                    <h2 style="font-size: 1.25rem; display: flex; align-items: center; gap: 8px;">
+                        🗓️ Weekly Schedule
+                    </h2>
+                    <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 18px;">
+                        {% for day_schedule in weekly_schedule %}
+                        <div style="background: #f8fafc; padding: 14px 18px; border-radius: 14px; border: 1px solid #e2e8f0;">
+                            <h3 style="margin: 0 0 10px 0; font-size: 0.95rem; text-transform: uppercase; color: #3b82f6; font-weight: 800; border-bottom: 2px solid #e0f2fe; padding-bottom: 4px; display: inline-block;">
+                                {{ day_schedule.0 }}
+                            </h3>
+                            <div style="display: flex; flex-direction: column; gap: 8px;">
+                                {% for cls in day_schedule.1 %}
+                                <div style="display: flex; justify-content: space-between; align-items: center; background: white; padding: 8px 12px; border-radius: 8px; border: 1px solid #f1f5f9; font-size: 0.85rem;">
+                                    <div>
+                                        <strong style="color: #1e293b;">{{ cls.subject }}</strong>
+                                        <div style="font-size: 0.75rem; color: #64748b;">👨‍🏫 {{ cls.teacher_name|default:'N/A' }}</div>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <div style="font-weight: 700; color: #475569;">{{ cls.start_time }} - {{ cls.end_time }}</div>
+                                        <div style="font-size: 0.75rem; color: #94a3b8;">📍 Room {{ cls.room }}</div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p style="text-align: center; color: #94a3b8; padding: 12px 0;">No schedule available.</p>
+                        {% endfor %}
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right Side: Recent Attendance Logs -->
+            <section class="page-card" style="padding: 24px; margin: 0; min-height: 100%;">
+                <h2 style="font-size: 1.25rem; display: flex; align-items: center; gap: 8px;">
+                    📝 Recent Attendance Logs
+                </h2>
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 18px;">
+                    {% for record in recent_attendance %}
+                    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; transition: transform 0.2s; border-left: 4px solid {% if record.status == 'Present' %}#10b981{% else %}#ef4444{% endif %};">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <strong style="color: #0f172a; font-size: 0.95rem;">{{ record.subject|default:'General Class' }}</strong>
+                                <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px;">📍 Room: {{ record.room|default:'Field' }}</div>
+                            </div>
+                            <span class="status-badge {% if record.status == 'Present' %}present{% else %}absent{% endif %}" style="font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 6px;">
+                                {{ record.status }}
+                            </span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; border-top: 1px solid #f1f5f9; margin-top: 10px; padding-top: 8px; font-size: 0.75rem; color: #94a3b8;">
+                            <span>📅 {{ record.date }}</span>
+                            <span>⏰ {{ record.time }}</span>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p style="text-align: center; color: #94a3b8; padding: 24px 0;">No attendance records found yet.</p>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Style overrides for keyframes -->
+    <style>
+        @keyframes pulseGreen {
+            0% {
+                box-shadow: 0 10px 20px rgba(16, 185, 129, 0.08);
+            }
+            100% {
+                box-shadow: 0 10px 25px rgba(16, 185, 129, 0.25);
+            }
+        }
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-5px);
+            }
+        }
+    </style>
+
+    <!-- Notification system JS -->
+    <script>
+        let notificationPollInterval;
+
+        function startNotificationPolling() {
+            // Poll every 2 seconds for new notifications
+            notificationPollInterval = setInterval(fetchNotifications, 2000);
+            fetchNotifications(); // Initial load
+        }
+
+        async function fetchNotifications() {
+            try {
+                const response = await fetch('{% url "get_notifications" %}');
+                const data = await response.json();
+
+                if (data.success && data.count > 0) {
+                    updateNotificationBadge(data.count);
+                    data.notifications.forEach(notification => {
+                        showNotificationToast(notification);
+                    });
+                }
+            } catch (error) {
+                console.error('Error fetching notifications:', error);
+            }
+        }
+
+        function updateNotificationBadge(count) {
+            const badge = document.getElementById('notificationBadge');
+            if (count > 0) {
+                badge.textContent = count;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function showNotificationToast(notification) {
+            const container = document.getElementById('notificationContainer');
+            
+            let icon = '📬';
+            if (notification.type === 'attendance_started') {
+                icon = '📍';
+            } else if (notification.type === 'success') {
+                icon = '✓';
+            } else if (notification.type === 'error') {
+                icon = '✕';
+            }
+
+            const toast = document.createElement('div');
+            toast.className = `notification-toast ${notification.type}`;
+            toast.innerHTML = `
+                <div class="notification-icon" style="font-size: 1.5rem; flex-shrink: 0; background: #e0f2fe; padding: 6px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">${icon}</div>
+                <div class="notification-content" style="flex: 1;">
+                    <p class="notification-title" style="font-weight: 700; color: #0f172a; margin: 0 0 4px 0; font-size: 0.95rem;">${notification.title}</p>
+                    <p class="notification-message" style="color: #64748b; font-size: 0.85rem; margin: 0;">${notification.message}</p>
+                </div>
+                <button class="notification-close" style="background: none; border: none; font-size: 1.2rem; color: #cbd5e1; cursor: pointer; flex-shrink: 0;" onclick="this.parentElement.remove()">×</button>
+            `;
+            
+            // Styled inline CSS to look premium
+            toast.style.background = '#ffffff';
+            toast.style.borderRadius = '14px';
+            toast.style.padding = '16px';
+            toast.style.boxShadow = '0 10px 30px rgba(15, 23, 42, 0.1)';
+            toast.style.borderLeft = '5px solid #3b82f6';
+            toast.style.display = 'flex';
+            toast.style.gap = '14px';
+            toast.style.alignItems = 'start';
+            toast.style.transition = 'all 0.3s ease';
+            
+            if (notification.type === 'attendance_started') {
+                toast.style.borderLeftColor = '#10b981';
+            }
+
+            container.appendChild(toast);
+
+            // If it's an attendance session notification, reload to show active banner
+            if (notification.type === 'attendance_started') {
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
+            }
+
+            // Auto-remove after 8 seconds
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateX(50px)';
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 8000);
+
+            // Mark as read
+            markNotificationAsRead(notification.id);
+        }
+
+        async function markNotificationAsRead(notificationId) {
+            try {
+                const readUrlTemplate = '{% url "mark_notification_as_read" 0 %}';
+                const readUrl = readUrlTemplate.replace('/api/notifications/0/read', `/api/notifications/${notificationId}/read`);
+                await fetch(readUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                });
+            } catch (error) {
+                console.error('Error marking notification as read:', error);
+            }
+        }
+
+        // Notification bell click handler
+        document.getElementById('notificationBell').addEventListener('click', function() {
+            alert('Notifications will pop up on your screen when a session starts!');
+        });
+
+        startNotificationPolling();
+
+        window.addEventListener('beforeunload', function() {
+            clearInterval(notificationPollInterval);
+        });
+    </script>
+{% endblock %}

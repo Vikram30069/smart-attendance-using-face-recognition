@@ -1,0 +1,32 @@
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path("", views.home, name="home"),
+    path("login", views.login_view, name="login"),
+    path("teacher_login", views.teacher_login_view, name="teacher_login"),
+    path("forgot_password", views.forgot_password_view, name="forgot_password"),
+    path("signup", views.signup_view, name="signup"),
+    path("logout", views.logout_view, name="logout"),
+    path("dashboard", views.dashboard, name="dashboard"),
+    path("register_user", views.register_user, name="register_user"),
+    path("panel/add_schedule", views.admin_add_schedule, name="admin_add_schedule"),
+    path("student/attendance-dashboard", views.student_attendance_dashboard, name="student_attendance_dashboard"),
+    path("mark-attendance", views.mark_attendance_page, name="mark_attendance_page"),
+    path("mark_attendance", views.mark_attendance, name="mark_attendance"),
+    path("start_session", views.start_session, name="start_session"),
+    path("stop_session", views.stop_session, name="stop_session"),
+    path("teacher/mark_manual", views.teacher_mark_manual, name="teacher_mark_manual"),
+    path("attendance_logs", views.attendance_logs, name="attendance_logs"),
+    path("reports", views.reports, name="reports"),
+    path("delete_student/<int:student_id>", views.delete_student, name="delete_student"),
+    path("delete_schedule/<int:schedule_id>", views.delete_schedule, name="delete_schedule"),
+    path("panel/reset_password", views.admin_reset_password, name="admin_reset_password"),
+    path("api/notifications", views.get_notifications, name="get_notifications"),
+    path("api/notifications/<int:notification_id>/read", views.mark_notification_as_read, name="mark_notification_as_read"),
+    path("api/notifications/all", views.get_all_notifications, name="get_all_notifications"),
+    path("panel/debug/class_schedule", views.admin_debug_class_schedule, name="admin_debug_class_schedule"),
+    path("teacher/download_register", views.teacher_download_register_csv, name="teacher_download_register"),
+    path("admin/download_logs", views.admin_download_logs_csv, name="admin_download_logs"),
+    path("admin/download_reports", views.admin_download_reports_csv, name="admin_download_reports"),
+]

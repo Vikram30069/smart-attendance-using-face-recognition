@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block title %}Student Dashboard{% endblock %}
+
+{% block nav %}
+    <span class="nav-user">{{ user.name }} ({{ user.roll_number }})</span>
+    <a href="{{ url_for('logout') }}" class="secondary-button">Logout</a>
+{% endblock %}
+
+{% block content %}
+    <div class="dashboard-grid">
+        <div class="stat-card">
+            <h2>Attendance Percentage</h2>
+            <p class="stat-number">{{ percentage }}%</p>
+        </div>
+        <div class="stat-card">
+            <h2>Days Present</h2>
+            <p class="stat-number">{{ present }} / {{ total }}</p>
+        </div>
+        <div class="stat-card">
+            <h2>Campus Geofence</h2>
+            <p class="small-text">{{ geofence_center[0] }}, {{ geofence_center[1] }}</p>
+        </div>
+    </div>
+
+    <section class="attendance-section">
+        <div class="section-header">
+            <h2>Mark Attendance</h2>
+            <p>Allow webcam and location access. The system validates liveness, face, and your location.</p>
+        </div>
+        <div class="attendance-panel">
+            <div class="camera-card">
+                <video id="video" autoplay muted playsinline></video>
+                <canvas id="canvas" class="hidden"></canvas>
+            </div>
+            <div class="attendance-actions">
+                <button id="markButton" class="primary-button">Capture and Mark Attendance</button>
+                <div id="attendanceResult" class="result-box"></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="logs-section">
+        <h2>My Attendance Log</h2>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Status</th>
+                        <th>Location</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in logs %}
+                    <tr>
+                        <td>{{ row.date }}</td>
+                        <td>{{ row.time }}</td>
+                        <td>{{ row.status }}</td>
+                        <td>{{ row.location }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4">No attendance records available.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="{{ url_for('static', filename='js/face_capture.js') }}"></script>
+{% endblock %}

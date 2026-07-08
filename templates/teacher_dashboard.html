@@ -1,0 +1,855 @@
+{% extends 'base.html' %}
+
+{% block title %}Teacher Dashboard{% endblock %}
+
+{% block nav %}
+<span class="nav-user" style="display: inline-flex; align-items: center; gap: 8px;">
+    <span style="font-size: 1.2rem;">👨‍🏫</span> {{ user.name }}
+</span>
+<span class="status-badge active"
+    style="background: #e0e7ff; color: #4f46e5; border-radius: 20px; font-weight: 700; padding: 4px 12px; font-size: 0.8rem;">
+    Teacher
+</span>
+<a href="{% url 'logout' %}" class="secondary-button" style="padding: 8px 16px; font-size: 0.85rem;">Logout</a>
+{% endblock %}
+
+{% block content %}
+<div class="teacher-dashboard">
+
+    <!-- Welcome Header -->
+    <div class="welcome-header"
+        style="margin-bottom: 28px; background: linear-gradient(135deg, #4f46e5 0%, #312e81 100%); color: white; padding: 32px; border-radius: 20px; box-shadow: 0 10px 25px rgba(79, 70, 229, 0.2);">
+        <h1 style="margin: 0; color: white; font-size: 2.2rem; font-weight: 800;">Welcome, {{ user.name }}!</h1>
+        <p style="margin: 8px 0 0 0; color: #c7d2fe; font-size: 1.05rem;">Manage your schedules, track class attendance,
+            and override logs for your students.</p>
+        <div
+            style="margin-top: 20px; display: inline-flex; background: rgba(255,255,255,0.1); padding: 8px 16px; border-radius: 30px; font-size: 0.9rem; font-weight: 600; align-items: center; gap: 8px;">
+            📅 Today is <span id="currentDateStr"></span>
+        </div>
+    </div>
+
+    <!-- Location permission reminder banner -->
+    <div
+        style="margin-bottom: 18px; padding: 14px 18px; border-radius: 12px; background: #fff7ed; border: 1px solid #ffedd5; color: #92400e; display:flex; align-items:center; gap:12px;">
+        <strong style="font-weight:800;">Reminder:</strong>
+        <div>Please allow location access when starting an attendance session — this sets the teacher's session location
+            so students can mark attendance nearby.</div>
+    </div>
+
+    <!-- Upper Info Cards -->
+    <div class="dashboard-grid" style="margin-bottom: 28px;">
+        <div class="stat-card" style="border-left: 5px solid #4f46e5;">
+            <p
+                style="margin: 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700;">
+                Department</p>
+            <h2 style="margin: 8px 0 0 0; font-size: 1.6rem; font-weight: 800; color: #0f172a;">{{ user.department }}
+            </h2>
+        </div>
+        <div class="stat-card" style="border-left: 5px solid #10b981;">
+            <p
+                style="margin: 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700;">
+                Teacher ID / Roll</p>
+            <h2 style="margin: 8px 0 0 0; font-size: 1.6rem; font-weight: 800; color: #0f172a;">{{ user.roll_number }}
+            </h2>
+        </div>
+        <div class="stat-card" style="border-left: 5px solid #f59e0b;">
+            <p
+                style="margin: 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700;">
+                Assigned Classes</p>
+            <h2 style="margin: 8px 0 0 0; font-size: 1.6rem; font-weight: 800; color: #0f172a;">{{ sections|length }}
+                Sections</h2>
+        </div>
+    </div>
+
+    <!-- Dynamic Classes & Years Attendance Overview -->
+    <section class="page-card" style="margin-bottom: 28px; padding: 28px;">
+        <h2 style="font-size: 1.4rem; display: flex; align-items: center; gap: 10px;">
+            📊 Classes & Years Attendance Overview
+        </h2>
+        <p style="color: #64748b; margin-top: -8px; margin-bottom: 24px;">Quick overview of overall student attendance
+            statistics across all classes and study years you teach.</p>
+
+        <div class="grid-classes"
+            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+            {% for sec in sections_summary %}
+            <div class="class-summary-card"
+                style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; transition: all 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.02); display: flex; flex-direction: column; justify-content: space-between; border-top: 4px solid #4f46e5;">
+                <div>
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                        <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; color: #0f172a;">{{ sec.section_name }}</h3>
+                        <span class="status-badge"
+                            style="background: #eff6ff; color: #2563eb; font-size: 0.75rem; font-weight: 700; border-radius: 12px; padding: 4px 10px;">
+                            {{ sec.year }}
+                        </span>
+                    </div>
+                    <p
+                        style="margin: 0; font-size: 0.85rem; color: #64748b; font-weight: 500; text-transform: uppercase;">
+                        {{ sec.department }}</p>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-size: 0.85rem; color: #64748b; font-weight: 600;">Overall Attendance</span>
+                        <span
+                            style="font-weight: 800; color: {% if sec.average_attendance >= 75 %}#10b981{% else %}#ef4444{% endif %}; font-size: 0.95rem;">
+                            {{ sec.average_attendance }}%
+                        </span>
+                    </div>
+                    <!-- Progress bar -->
+                    <div style="background: #e2e8f0; height: 8px; border-radius: 10px; overflow: hidden; width: 100%;">
+                        <div
+                            style="background: {% if sec.average_attendance >= 75 %}linear-gradient(to right, #10b981, #34d399){% else %}linear-gradient(to right, #ef4444, #f87171){% endif %}; width: {{ sec.average_attendance }}%; height: 100%; border-radius: 10px; transition: width 1s ease-in-out;">
+                        </div>
+                    </div>
+                </div>
+
+                <div
+                    style="display: flex; justify-content: space-between; border-top: 1px solid #f1f5f9; margin-top: 20px; padding-top: 14px; font-size: 0.85rem;">
+                    <span style="color: #64748b;">Students: <strong>{{ sec.total_students }}</strong></span>
+                    {% if active_session and active_session.section_id == sec.id %}
+                    <span
+                        style="color: #10b981; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                        🟢 Live: {{ sec.present_in_active }} present
+                    </span>
+                    {% else %}
+                    <span style="color: #94a3b8; font-style: italic;">No active session</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <p style="text-align: center; color: #94a3b8; padding: 20px; grid-column: 1/-1;">No classes assigned to you.
+            </p>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- Active Attendance Session -->
+    <section class="page-card" style="margin-bottom: 28px; padding: 28px; background: #ffffff;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+            <div>
+                <h2 style="font-size: 1.4rem; margin: 0; display: flex; align-items: center; gap: 10px;">
+                    📢 Active Attendance Session
+                </h2>
+                {% if active_session %}
+                <p style="margin: 8px 0 0 0; color: #475569;">
+                    Active session started for <strong>{{ active_session.subject }}</strong> in room <strong>{{ active_session.room }}</strong> for section <strong>{{ active_session.section_name }}</strong>.
+                </p>
+                {% else %}
+                <p style="margin: 8px 0 0 0; color: #64748b;">
+                    No active attendance window right now. Start a session from the timetable below to let students mark
+                    their attendance.
+                </p>
+                {% endif %}
+            </div>
+            <div>
+                {% if active_session %}
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <div
+                        style="background: #fef2f2; border: 1px solid #fee2e2; padding: 10px 16px; border-radius: 12px; display: flex; flex-direction: column; align-items: center;">
+                        <span
+                            style="font-size: 0.75rem; color: #991b1b; font-weight: 700; text-transform: uppercase;">Session
+                            Expires</span>
+                        <span id="expiresTimer" style="font-size: 1.15rem; font-weight: 800; color: #ef4444;"
+                            data-expiry="{{ active_session.expires_at }}">--:--</span>
+                    </div>
+                    <form method="post" action="{% url 'stop_session' %}" style="margin:0;">
+                        {% csrf_token %}
+                        <input type="hidden" name="session_id" value="{{ active_session.id }}" />
+                        <button type="submit" class="secondary-button"
+                            style="background: #fee2e2; color: #ef4444; border-color: #fecaca; padding: 12px 20px; font-weight: 700; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.08);">
+                            🛑 Stop Session
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <!-- Hidden print headers -->
+    <div class="print-timetable-header-only" style="display: none; margin-bottom: 24px; border-bottom: 2px solid #334155; padding-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <h1 style="margin: 0; font-size: 2rem; font-weight: 800; color: #0f172a;">Weekly Timetable</h1>
+                <p style="margin: 4px 0 0 0; color: #475569; font-size: 1.1rem;">Teacher: <strong>{{ user.name }}</strong> | Department: <strong>{{ user.department }}</strong></p>
+            </div>
+            <div style="text-align: right;">
+                <p style="margin: 0; font-size: 0.9rem; color: #64748b;">Teacher ID: <strong>{{ user.roll_number }}</strong></p>
+                <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: #64748b;">Printed on: <span class="current-print-date"></span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timetable and Start Sessions -->
+    <section id="timetable-print-section" class="page-card timetable-print-section" style="margin-bottom: 28px; padding: 28px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 20px;">
+            <div>
+                <h2 style="font-size: 1.4rem; margin: 0; display: flex; align-items: center; gap: 10px;">
+                    📅 Timetable & Action Schedule
+                </h2>
+                <p style="color: #64748b; margin: 6px 0 0 0;">Launch attendance sessions inside their scheduled period. Geofencing and student alerts are handled automatically upon start.</p>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; flex-shrink: 0;">
+                <div style="display: flex; gap: 6px; border: 1px solid #cbd5e1; padding: 4px; border-radius: 8px; background: #f8fafc;">
+                    <button type="button" id="toggleListViewBtn" class="primary-button" onclick="switchTimetableView('list')" style="margin: 0; padding: 6px 12px; font-size: 0.85rem; border-radius: 6px; font-weight: 700; background: #4f46e5; border: none; color: white;">
+                        📝 List View
+                    </button>
+                    <button type="button" id="toggleTableViewBtn" class="secondary-button" onclick="switchTimetableView('table')" style="margin: 0; padding: 6px 12px; font-size: 0.85rem; border-radius: 6px; font-weight: 700; background: transparent; border: none; color: #475569;">
+                        📊 Table View
+                    </button>
+                </div>
+                <button type="button" class="secondary-button" onclick="printTimetable()" style="margin: 0; padding: 8px 16px; font-size: 0.85rem; border-radius: 8px; font-weight: 700; background: #fff; border: 1px solid #cbd5e1; color: #475569; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                    🖨️ Print Timetable
+                </button>
+            </div>
+        </div>
+        
+        <div id="sessionStatusMessage" style="margin-bottom: 12px; color: #b91c1c; font-size: 0.95rem; display: none;">
+            Please allow location access and wait until your current position is acquired.</div>
+        <button id="locationRetryBtn" type="button" class="secondary-button" style="display: none; margin-bottom: 20px;"
+            onclick="retryTeacherLocation()">
+            Retry Location Access
+        </button>
+
+        <!-- List View -->
+        <div id="timetable-list-view" style="display: flex; flex-direction: column; gap: 24px; margin-top: 18px;">
+            {% for day_data in weekly_schedule %}
+            <div style="background: #f8fafc; padding: 20px; border-radius: 14px; border: 1px solid #e2e8f0;">
+                <h3
+                    style="margin: 0 0 16px 0; font-size: 1.1rem; text-transform: uppercase; color: #4f46e5; font-weight: 800; border-bottom: 2px solid #e0e7ff; padding-bottom: 6px; display: inline-block;">
+                    📅 {{ day_data.0 }}
+                </h3>
+                <div class="table-wrapper">
+                    <table style="min-width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>Subject</th>
+                                <th>Class (Section)</th>
+                                <th>Scheduled Time</th>
+                                <th>Room</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in day_data.1 %}
+                            <tr style="transition: all 0.2s;">
+                                <td><strong style="color: #0f172a;">{{ item.subject }}</strong></td>
+                                <td>
+                                    {% if item.subject == 'Leisure' or item.class_name == 'Leisure' %}
+                                    <span style="color: #94a3b8; font-style: italic;">N/A</span>
+                                    {% else %}
+                                    <span class="status-badge"
+                                        style="background: #f1f5f9; color: #475569; font-weight: 600; font-size: 0.8rem; padding: 4px 8px; border-radius: 6px;">
+                                        {{ item.section_name|default:'CSE-A' }}
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.start_time }} - {{ item.end_time }}</td>
+                                <td>📍 {{ item.room }}</td>
+                                <td>
+                                    {% if item.subject == 'Leisure' or item.class_name == 'Leisure' %}
+                                    <span
+                                        style="color: #64748b; font-weight: 600; font-style: italic; background: #f1f5f9; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
+                                        ☕ Leisure
+                                    </span>
+                                    {% elif active_session and active_session.class_schedule_id == item.id %}
+                                    <span
+                                        style="color: #10b981; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                                        🟢 Session Active
+                                    </span>
+                                    {% else %}
+                                    <form method="post" action="{% url 'start_session' %}" class="session-form"
+                                        style="margin: 0; display: inline-block;"
+                                        onsubmit="return ensureLocationProvided(event, {{ item.id }})">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="class_id" value="{{ item.id }}" />
+                                        <input type="hidden" name="latitude" id="teacher-lat-{{ item.id }}" />
+                                        <input type="hidden" name="longitude" id="teacher-lon-{{ item.id }}" />
+                                        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+                                            <small class="location-status" id="loc-status-{{ item.id }}"
+                                                style="color:#b91c1c;display:none;font-size:0.85rem;">Waiting for
+                                                location...</small>
+                                            <button type="submit" class="primary-button" id="start-btn-{{ item.id }}"
+                                                title="Allow location when prompted — required to set the session location"
+                                                style="padding: 8px 16px; font-size: 0.85rem; border-radius: 8px; font-weight: 600; margin: 0; width: auto; background: linear-gradient(135deg, #4f46e5, #6366f1);"
+                                                disabled>
+                                                Start Session
+                                            </button>
+                                        </div>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% empty %}
+            <div
+                style="text-align: center; color: #94a3b8; padding: 24px; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0;">
+                No scheduled classes available.</div>
+            {% endfor %}
+        </div>
+
+        <!-- Table Grid View -->
+        <div id="timetable-table-view" style="display: none; overflow-x: auto; margin-top: 18px;">
+            <table style="min-width: 100%; border-collapse: collapse; text-align: center; border: 1px solid #e2e8f0;">
+                <thead>
+                    <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1;">
+                        <th style="padding: 12px; font-weight: 700; color: #475569; border: 1px solid #e2e8f0; text-align: left;">Day</th>
+                        <th style="padding: 12px; font-weight: 700; color: #475569; border: 1px solid #e2e8f0;">09:30 - 10:30<br><small style="font-weight:normal;color:#64748b;">Period 1</small></th>
+                        <th style="padding: 12px; font-weight: 700; color: #475569; border: 1px solid #e2e8f0;">10:30 - 11:30<br><small style="font-weight:normal;color:#64748b;">Period 2</small></th>
+                        <th style="padding: 12px; font-weight: 700; color: #475569; border: 1px solid #e2e8f0;">11:30 - 12:30<br><small style="font-weight:normal;color:#64748b;">Period 3</small></th>
+                        <th style="padding: 12px; font-weight: 700; color: #b45309; border: 1px solid #fde68a; background: #fffdf5; font-style: italic;">Lunch Break<br><small style="font-weight:normal;color:#b45309;">12:30 - 13:10</small></th>
+                        <th style="padding: 12px; font-weight: 700; color: #475569; border: 1px solid #e2e8f0;">13:10 - 14:10<br><small style="font-weight:normal;color:#64748b;">Period 4</small></th>
+                        <th style="padding: 12px; font-weight: 700; color: #475569; border: 1px solid #e2e8f0;">14:10 - 15:10<br><small style="font-weight:normal;color:#64748b;">Period 5</small></th>
+                        <th style="padding: 12px; font-weight: 700; color: #475569; border: 1px solid #e2e8f0;">15:10 - 16:10<br><small style="font-weight:normal;color:#64748b;">Period 6</small></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in table_grid %}
+                    <tr style="border-bottom: 1px solid #e2e8f0;">
+                        <td style="padding: 14px; font-weight: 800; background: #f8fafc; border: 1px solid #e2e8f0; color: #4f46e5; text-align: left;">
+                            {{ row.day }}
+                        </td>
+                        {% for cell in row.slots %}
+                            {% if forloop.counter == 4 %}
+                                <td style="padding: 14px; background: #fffdf5; border: 1px solid #fde68a; color: #b45309; font-weight: 600; font-style: italic; border: 1px solid #e2e8f0;">
+                                    🍱 Break
+                                </td>
+                            {% endif %}
+                            
+                            <td style="padding: 14px; border: 1px solid #e2e8f0; background-color: {{ cell.color }};">
+                                {% if cell.type == 'class' %}
+                                    <div style="font-weight: 800; color: #1e1b4b; font-size: 0.95rem;">{{ cell.label }}</div>
+                                    <div style="font-size: 0.8rem; color: #4f46e5; font-weight: 600; margin-top: 4px;">{{ cell.sub_label }}</div>
+                                    
+                                    {% if active_session and active_session.class_schedule_id == cell.item.id %}
+                                        <div style="margin-top: 6px; font-size: 0.75rem; color: #10b981; font-weight: 700;">🟢 Active</div>
+                                    {% else %}
+                                        <form method="post" action="{% url 'start_session' %}" style="margin: 6px 0 0 0;" onsubmit="return ensureLocationProvided(event, {{ cell.item.id }})">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="class_id" value="{{ cell.item.id }}" />
+                                            <input type="hidden" name="latitude" id="teacher-lat-table-{{ cell.item.id }}" />
+                                            <input type="hidden" name="longitude" id="teacher-lon-table-{{ cell.item.id }}" />
+                                            <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+                                                <small class="location-status" id="loc-status-table-{{ cell.item.id }}" style="color:#b91c1c;display:none;font-size:0.75rem;">No location</small>
+                                                <button type="submit" id="start-btn-table-{{ cell.item.id }}" class="primary-button" style="padding: 4px 8px; font-size: 0.75rem; border-radius: 4px; font-weight: 700; width: auto; background: #4f46e5; border: none; margin: 0;" disabled>
+                                                    Start
+                                                </button>
+                                            </div>
+                                        </form>
+                                    {% endif %}
+                                {% elif cell.type == 'leisure' %}
+                                    <span style="color: #64748b; font-weight: 500; font-size: 0.85rem; font-style: italic;">☕ Leisure</span>
+                                {% else %}
+                                    <span style="color: #94a3b8; font-weight: 500; font-size: 0.85rem;">—</span>
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Hidden print headers -->
+    <div class="print-header-only" style="display: none; margin-bottom: 24px; border-bottom: 2px solid #334155; padding-bottom: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <h1 style="margin: 0; font-size: 2rem; font-weight: 800; color: #0f172a;">Student Attendance Register</h1>
+                <p style="margin: 4px 0 0 0; color: #475569; font-size: 1.1rem;">Class Section: <strong id="print-register-classname"></strong></p>
+            </div>
+            <div style="text-align: right;">
+                <p style="margin: 0; font-size: 0.9rem; color: #64748b;">Teacher: <strong>{{ user.name }}</strong></p>
+                <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: #64748b;">Printed on: <span class="current-print-date"></span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Class Attendance Registry -->
+    <section id="register-print-section" class="page-card register-print-section" style="padding: 28px;">
+        <h2 style="font-size: 1.4rem; display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+            👥 Class Student Registry & Manual Override
+        </h2>
+        <p style="color: #64748b; margin-top: -6px; margin-bottom: 24px;">
+            If students face recognition issues (camera malfunction, poor lighting) but are physically present, select
+            their class below and mark them present manually.
+        </p>
+
+        <!-- Dropdown Filter Section -->
+        <div class="filter-section"
+            style="margin-bottom: 24px; background: #f8fafc; padding: 20px; border-radius: 16px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+            <form method="get" action="{% url 'dashboard' %}"
+                style="margin: 0; display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+                <label for="section_id" style="margin: 0; font-weight: 700; font-size: 0.95rem; color: #334155;">Choose
+                    Class Section:</label>
+                <select name="section_id" id="section_id"
+                    style="width: auto; min-width: 280px; margin: 0; padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; background-color: #fff;"
+                    onchange="this.form.submit()">
+                    <option value="">-- Choose Class --</option>
+                    {% for sec in sections %}
+                    <option value="{{ sec.id }}" {% if sec.id == selected_section_id %}selected{% endif %}>
+                        {{ sec.section_name }} - {{ sec.year }} ({{ sec.department }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </form>
+
+            {% if selected_section_id %}
+            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <input type="text" id="registrySearch" placeholder="🔍 Search student by name or roll..."
+                    onkeyup="filterRegistry()"
+                    style="width: 230px; margin: 0; padding: 8px 14px; border-radius: 8px; border: 1px solid #cbd5e1; background-color: #fff; font-size: 0.9rem;" />
+                <span class="status-badge active"
+                    style="margin: 0; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; background: #e0f2fe; color: #0369a1;">
+                    👥 Students: {{ students|length }}
+                </span>
+                <a href="{% url 'teacher_download_register' %}?section_id={{ selected_section_id }}" class="secondary-button"
+                    style="margin: 0; padding: 8px 14px; font-size: 0.85rem; border-radius: 8px; font-weight: 700; background: #fff; border: 1px solid #cbd5e1; color: #0284c7; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                    📥 Download CSV
+                </a>
+                <button type="button" class="secondary-button" onclick="printRegister()"
+                    style="margin: 0; padding: 8px 14px; font-size: 0.85rem; border-radius: 8px; font-weight: 700; background: #fff; border: 1px solid #cbd5e1; color: #475569; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                    🖨️ Print Register
+                </button>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Student List -->
+        {% if selected_section_id %}
+        {% if students %}
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Roll Number</th>
+                        <th>Student Name</th>
+                        <th>Department / Year</th>
+                        <th>Overall Attendance</th>
+                        <th>Session Status</th>
+                        <th>Registry Action</th>
+                    </tr>
+                </thead>
+                <tbody id="registryTableBody">
+                    {% for student in students %}
+                    <tr id="student-row-{{ student.id }}" style="transition: background-color 0.2s;">
+                        <td><strong>{{ student.roll_number }}</strong></td>
+                        <td class="student-name"><strong>{{ student.name }}</strong></td>
+                        <td>{{ student.department }} ({{ student.year }})</td>
+                        <td>
+                            <span
+                                class="status-badge {% if student.percentage >= 75 %}active{% else %}inactive{% endif %}"
+                                style="font-size: 0.85rem; padding: 4px 10px; font-weight: 700; border-radius: 8px;">
+                                {{ student.percentage }}%
+                            </span>
+                        </td>
+                        <td>
+                            <span
+                                class="status-badge {% if student.session_status == 'Present' %}active{% else %}inactive{% endif %}"
+                                id="status-badge-{{ student.id }}"
+                                style="font-size: 0.85rem; padding: 4px 10px; font-weight: 700; border-radius: 8px;">
+                                {{ student.session_status }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if active_session and active_session.section_id == selected_section_id %}
+                            <button class="primary-button btn-mark-present" id="btn-mark-{{ student.id }}"
+                                style="padding: 8px 14px; font-size: 0.8rem; border-radius: 8px; margin: 0; width: auto; background: #10b981; border: none; font-weight: 700; {% if student.session_status == 'Present' %}display: none;{% endif %}"
+                                onclick="markManualPresent({{ student.id }}, {{ active_session.id }})">
+                                Mark Present
+                            </button>
+                            <span id="manual-success-{{ student.id }}"
+                                style="color: #10b981; font-weight: 700; font-size: 0.9rem; display: inline-flex; align-items: center; gap: 4px; {% if student.session_status != 'Present' %}display: none;{% endif %}">
+                                ✓ Marked Present
+                            </span>
+                            {% else %}
+                            <span class="small-text" style="color: #94a3b8; font-style: italic;">No active session for
+                                this class</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div
+            style="text-align: center; padding: 48px; color: #94a3b8; background: #f8fafc; border-radius: 14px; border: 2px dashed #cbd5e1; margin-top: 16px;">
+            <p style="font-size: 1.1rem; margin: 0; font-weight: 500;">No students registered under this section.</p>
+        </div>
+        {% endif %}
+        {% else %}
+        <div
+            style="text-align: center; padding: 48px; color: #94a3b8; background: #f8fafc; border-radius: 14px; border: 2px dashed #cbd5e1; margin-top: 16px;">
+            <p style="font-size: 1.1rem; margin: 0; font-weight: 500;">Select an assigned section from the dropdown
+                above to view student registers and manage attendance.</p>
+        </div>
+        {% endif %}
+    </section>
+
+</div>
+
+<!-- Script Section -->
+<script>
+    // Update Today's Date String
+    function updateDateDisplay() {
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('currentDateStr').textContent = new Date().toLocaleDateString(undefined, options);
+    }
+    updateDateDisplay();
+
+    // Expire Countdown Timer
+    function initCountdown() {
+        const timerEl = document.getElementById('expiresTimer');
+        if (!timerEl) return;
+
+        const expiryStr = timerEl.getAttribute('data-expiry');
+        if (!expiryStr) return;
+
+        // Parser ISO date (assuming it's UTC)
+        const expiryDate = new Date(expiryStr.replace(' ', 'T') + (expiryStr.endsWith('Z') || expiryStr.includes('T') ? '' : 'Z'));
+
+        const interval = setInterval(() => {
+            const now = new Date();
+            const diff = expiryDate - now;
+
+            if (diff <= 0) {
+                clearInterval(interval);
+                timerEl.textContent = 'Expired';
+                timerEl.style.color = '#ef4444';
+                setTimeout(() => location.reload(), 2000);
+                return;
+            }
+
+            const mins = Math.floor(diff / 1000 / 60);
+            const secs = Math.floor((diff / 1000) % 60);
+            timerEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }, 1000);
+    }
+    initCountdown();
+
+    // Filter Registry Students
+    function filterRegistry() {
+        const query = document.getElementById('registrySearch').value.toLowerCase();
+        const rows = document.querySelectorAll('#registryTableBody tr');
+
+        rows.forEach(row => {
+            const name = row.querySelector('.student-name').textContent.toLowerCase();
+            const roll = row.cells[0].textContent.toLowerCase();
+
+            if (name.includes(query) || roll.includes(query)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    // Manual Attendance Override via AJAX
+    async function markManualPresent(studentId, sessionId) {
+        if (!confirm('Are you sure you want to manually mark this student as Present?')) return;
+
+        const btn = document.getElementById(`btn-mark-${studentId}`);
+        btn.disabled = true;
+        btn.textContent = 'Marking...';
+
+        const formData = new FormData();
+        formData.append('student_id', studentId);
+        formData.append('session_id', sessionId);
+
+        try {
+            const response = await fetch('/teacher/mark_manual', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: formData
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                // Update registry status badge
+                const badge = document.getElementById(`status-badge-${studentId}`);
+                badge.textContent = 'Present';
+                badge.className = 'status-badge active';
+
+                // Hide button and show success indicator
+                btn.style.display = 'none';
+                document.getElementById(`manual-success-${studentId}`).style.display = 'inline-flex';
+            } else {
+                alert('Error: ' + data.message);
+                btn.disabled = false;
+                btn.textContent = 'Mark Present';
+            }
+        } catch (error) {
+            alert('Network error while marking attendance. Please try again.');
+            btn.disabled = false;
+            btn.textContent = 'Mark Present';
+        }
+    }
+
+    function updateSessionStatusMessage(text, isError = true, showRetry = false) {
+        const statusEl = document.getElementById('sessionStatusMessage');
+        const retryBtn = document.getElementById('locationRetryBtn');
+        if (!statusEl) return;
+        if (retryBtn) {
+            retryBtn.style.display = showRetry ? 'inline-flex' : 'none';
+        }
+        if (!text) {
+            statusEl.style.display = 'none';
+            return;
+        }
+        statusEl.style.display = 'block';
+        statusEl.style.color = isError ? '#b91c1c' : '#047857';
+        statusEl.textContent = text;
+    }
+
+    function retryTeacherLocation() {
+        updateSessionStatusMessage('Retrying to acquire location...', false, false);
+        setTeacherLocation();
+    }
+
+    // Set Geolocation Coordinates and enable start buttons when available
+    async function setTeacherLocation() {
+        const retryBtn = document.getElementById('locationRetryBtn');
+        if (retryBtn) {
+            retryBtn.style.display = 'none';
+        }
+        if (!navigator.geolocation) {
+            console.warn('Geolocation not available');
+            document.querySelectorAll('.location-status').forEach(s => {
+                s.style.display = 'block';
+                s.textContent = 'Geolocation not available in this browser.';
+            });
+            updateSessionStatusMessage('Geolocation is not available. The session cannot start until location access is granted.', true, false);
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition((position) => {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            document.querySelectorAll('input[id^="teacher-lat-"]').forEach((input) => input.value = lat);
+            document.querySelectorAll('input[id^="teacher-lon-"]').forEach((input) => input.value = lon);
+
+            // enable buttons and hide status
+            document.querySelectorAll('button[id^="start-btn-"]').forEach(btn => btn.disabled = false);
+            document.querySelectorAll('.location-status').forEach(s => s.style.display = 'none');
+            updateSessionStatusMessage('Location acquired. You can now start the attendance session.', false);
+        }, (err) => {
+            console.warn('Geolocation access denied or unavailable.', err);
+            document.querySelectorAll('.location-status').forEach(s => {
+                s.style.display = 'block';
+                if (err && err.code === err.PERMISSION_DENIED) {
+                    s.textContent = 'Please allow location access to start the session.';
+                    updateSessionStatusMessage('Location permission denied. Please allow location access for this site.', true, true);
+                } else {
+                    s.textContent = 'Unable to determine location. Try again.';
+                    updateSessionStatusMessage('Unable to determine your location. Refresh and try again.', true, true);
+                }
+            });
+        }, { enableHighAccuracy: true, timeout: 10000 });
+    }
+    // Call on page load and periodically refresh
+    setTeacherLocation();
+    setInterval(setTeacherLocation, 10000);
+
+    // Prevent form submission if location not provided for that class
+    function ensureLocationProvided(event, scheduleId) {
+        const latEl = document.getElementById('teacher-lat-' + scheduleId) || document.getElementById('teacher-lat-table-' + scheduleId);
+        const lonEl = document.getElementById('teacher-lon-' + scheduleId) || document.getElementById('teacher-lon-table-' + scheduleId);
+        const lat = latEl ? latEl.value : null;
+        const lon = lonEl ? lonEl.value : null;
+        
+        if (!lat || !lon) {
+            event.preventDefault();
+            const status = document.getElementById('loc-status-' + scheduleId) || document.getElementById('loc-status-table-' + scheduleId);
+            if (status) {
+                status.style.display = 'block';
+                status.textContent = 'Please allow location access before starting the session.';
+            } else {
+                alert('Please allow location access before starting the session.');
+            }
+            updateSessionStatusMessage('Please allow location access before starting the session.', true);
+            return false;
+        }
+        return true;
+    }
+
+    // Switch between List and Table views for Teacher Timetable
+    function switchTimetableView(view) {
+        const listView = document.getElementById('timetable-list-view');
+        const tableView = document.getElementById('timetable-table-view');
+        const listBtn = document.getElementById('toggleListViewBtn');
+        const tableBtn = document.getElementById('toggleTableViewBtn');
+        
+        if (!listView || !tableView || !listBtn || !tableBtn) return;
+        
+        if (view === 'table') {
+            listView.style.display = 'none';
+            tableView.style.display = 'block';
+            
+            // Switch button active styles
+            listBtn.style.background = 'transparent';
+            listBtn.style.color = '#475569';
+            
+            tableBtn.style.background = '#4f46e5';
+            tableBtn.style.color = 'white';
+            
+            localStorage.setItem('teacher_timetable_view', 'table');
+        } else {
+            listView.style.display = 'flex'; // Uses flex layout originally
+            tableView.style.display = 'none';
+            
+            listBtn.style.background = '#4f46e5';
+            listBtn.style.color = 'white';
+            
+            tableBtn.style.background = 'transparent';
+            tableBtn.style.color = '#475569';
+            
+            localStorage.setItem('teacher_timetable_view', 'list');
+        }
+    }
+
+    // Load preference on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedView = localStorage.getItem('teacher_timetable_view');
+        if (savedView === 'table') {
+            switchTimetableView('table');
+        }
+    });
+
+    // Print helper functions
+    function printTimetable() {
+        document.querySelectorAll('.current-print-date').forEach(el => {
+            el.textContent = new Date().toLocaleString();
+        });
+        document.body.classList.add('printing-timetable');
+        window.print();
+        document.body.classList.remove('printing-timetable');
+    }
+
+    function printRegister() {
+        document.querySelectorAll('.current-print-date').forEach(el => {
+            el.textContent = new Date().toLocaleString();
+        });
+        const selectEl = document.getElementById('section_id');
+        const printSpan = document.getElementById('print-register-classname');
+        if (selectEl && printSpan) {
+            printSpan.textContent = selectEl.options[selectEl.selectedIndex].text;
+        }
+        document.body.classList.add('printing-register');
+        window.print();
+        document.body.classList.remove('printing-register');
+    }
+</script>
+
+<style>
+    @media print {
+        /* General print styling defaults */
+        body {
+            background: #fff !important;
+            color: #000 !important;
+            font-family: 'Inter', system-ui, sans-serif !important;
+        }
+
+        /* Hide all UI layout elements */
+        header, footer, nav, .sidebar, .welcome-header, .location-permission-banner,
+        .dashboard-grid, .location-permission-banner, .filter-section, button,
+        .primary-button, .secondary-button, form, #sessionStatusMessage, #locationRetryBtn,
+        .welcome-header + div {
+            display: none !important;
+        }
+
+        /* Printing Timetable layout rules */
+        body.printing-timetable .register-print-section,
+        body.printing-timetable .welcome-header,
+        body.printing-timetable .dashboard-grid,
+        body.printing-timetable .page-card:not(.timetable-print-section) {
+            display: none !important;
+        }
+        body.printing-timetable .print-timetable-header-only {
+            display: block !important;
+        }
+        body.printing-timetable .timetable-print-section {
+            display: block !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            background: transparent !important;
+        }
+
+        /* Printing Student Register layout rules */
+        body.printing-register .timetable-print-section,
+        body.printing-register .welcome-header,
+        body.printing-register .dashboard-grid,
+        body.printing-register .page-card:not(.register-print-section) {
+            display: none !important;
+        }
+        body.printing-register .print-header-only {
+            display: block !important;
+        }
+        body.printing-register .register-print-section {
+            display: block !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            background: transparent !important;
+        }
+
+        /* Hide specific rows or columns in printed register */
+        body.printing-register td:last-child, 
+        body.printing-register th:last-child {
+            display: none !important;
+        }
+
+        /* Table print formatting overrides */
+        table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            margin-top: 15px !important;
+            page-break-inside: auto !important;
+        }
+        tr {
+            page-break-inside: avoid !important;
+            page-break-after: auto !important;
+        }
+        th, td {
+            border: 1px solid #cbd5e1 !important;
+            padding: 10px !important;
+            font-size: 10pt !important;
+            text-align: left !important;
+            color: #000 !important;
+            background: #fff !important;
+        }
+        th {
+            font-weight: bold !important;
+            background-color: #f1f5f9 !important;
+        }
+        
+        /* Ensure table timetable slots are readable */
+        #timetable-table-view td {
+            background-color: #fff !important;
+            color: #000 !important;
+            padding: 8px !important;
+            font-size: 9pt !important;
+        }
+        
+        #timetable-table-view td div {
+            color: #000 !important;
+        }
+
+        @page {
+            size: A4 portrait;
+            margin: 15mm;
+        }
+    }
+</style>
+{% endblock %}

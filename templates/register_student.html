@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block title %}Register Student{% endblock %}
+
+{% block nav %}
+    <a href="{{ url_for('dashboard') }}" class="secondary-button">Dashboard</a>
+    <a href="{{ url_for('logout') }}" class="secondary-button">Logout</a>
+{% endblock %}
+
+{% block content %}
+    <div class="card form-card">
+        <h1>Register New Student</h1>
+        <p>Add a new student account with a registered face image. This creates a secure profile for attendance tracking.</p>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="alert-container">
+                {% for category, message in messages %}
+                    <div class="alert {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% endwith %}
+        <form method="post" action="{{ url_for('upload_face') }}" enctype="multipart/form-data">
+            <label>Name</label>
+            <input type="text" name="name" required />
+
+            <label>Roll Number</label>
+            <input type="text" name="roll_number" required />
+
+            <label>Department</label>
+            <input type="text" name="department" required />
+
+            <label>Username</label>
+            <input type="text" name="username" required />
+
+            <label>Password</label>
+            <input type="password" name="password" placeholder="Defaults to student123" />
+
+            <label>Face Image</label>
+            <input type="file" name="face_image" accept="image/*" required />
+
+            <button type="submit" class="primary-button">Register Student</button>
+        </form>
+    </div>
+{% endblock %}

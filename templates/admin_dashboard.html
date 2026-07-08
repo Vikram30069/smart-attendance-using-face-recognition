@@ -1,0 +1,691 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block nav %}
+    <span class="nav-user">{{ user.name }}</span>
+    <a href="{% url 'logout' %}" class="secondary-button">Logout</a>
+{% endblock %}
+
+{% block content %}
+    <style>
+        .timetable-header-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #1e293b;
+            border-bottom: none;
+            padding: 12px 20px;
+            background: #f8fafc;
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #0f172a;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+        }
+        .timetable-header-info .info-item {
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .timetable-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0;
+            background: #ffffff;
+            border: 1px solid #1e293b;
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+        .timetable-table th, .timetable-table td {
+            border: 1px solid #1e293b;
+            text-align: center;
+            padding: 14px 10px;
+            vertical-align: middle;
+            font-size: 0.95rem;
+            position: relative;
+        }
+        .timetable-table th {
+            background: #f1f5f9;
+            color: #0f172a;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+        .timetable-table td.day-cell {
+            background: #f8fafc;
+            font-weight: 700;
+            color: #0f172a;
+            width: 90px;
+        }
+        .timetable-table td.lunch-cell {
+            background: #f1f5f9;
+            font-weight: 800;
+            color: #475569;
+            letter-spacing: 6px;
+            width: 55px;
+            font-size: 1.2rem;
+            writing-mode: vertical-lr;
+            text-orientation: upright;
+            padding: 20px 8px;
+        }
+        .timetable-cell-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 55px;
+        }
+        .timetable-cell-content .subject-code {
+            font-weight: 800;
+            font-size: 1.05rem;
+        }
+        .timetable-cell-content .teacher-name {
+            font-size: 0.75rem;
+            margin-top: 4px;
+            font-weight: 600;
+            opacity: 0.85;
+        }
+        .grid-delete-btn {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            opacity: 0;
+            visibility: hidden;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            width: 18px;
+            height: 18px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            line-height: 1;
+            padding: 0;
+            z-index: 10;
+        }
+        .timetable-table td:hover .grid-delete-btn {
+            opacity: 1;
+            visibility: visible;
+        }
+        .grid-delete-btn:hover {
+            background: #dc2626;
+            transform: scale(1.15);
+        }
+    </style>
+
+    <div class="dashboard-grid">
+        <div class="stat-card">
+            <h2>Total Students</h2>
+            <p class="stat-number">{{ students|length }}</p>
+        </div>
+        <div class="stat-card">
+            <h2>Total Teachers</h2>
+            <p class="stat-number">{{ teachers|length }}</p>
+        </div>
+        <div class="stat-card">
+            <h2>Total Attendance Records</h2>
+            <p class="stat-number">{{ attendance_count }}</p>
+        </div>
+        <div class="stat-card">
+            <h2>Today's Check-ins</h2>
+            <p class="stat-number">{{ today_count }}</p>
+        </div>
+    </div>
+
+    <section class="admin-actions">
+        <a href="{% url 'register_user' %}" class="primary-button">Register User</a>
+        <a href="{% url 'admin_add_schedule' %}" class="secondary-button">Create Class Schedule</a>
+        <a href="{% url 'attendance_logs' %}" class="secondary-button">Attendance Logs</a>
+        <a href="{% url 'reports' %}" class="secondary-button">Reports</a>
+    </section>
+
+    <section class="page-card">
+        <h2>Registered Students</h2>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Roll</th>
+                        <th>Department</th>
+                        <th>Section</th>
+                        <th>Year</th>
+                        <th>Username</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in students %}
+                    <tr>
+                        <td>{{ student.name }}</td>
+                        <td>{{ student.email|default:'—' }}</td>
+                        <td>{{ student.roll_number }}</td>
+                        <td>{{ student.department }}</td>
+                        <td>{{ student.section_name|default:'Unassigned' }}</td>
+                        <td>{{ student.year|default:'—' }}</td>
+                        <td>{{ student.username }}</td>
+                        <td>
+                            <button class="delete-btn" type="button" data-student-id="{{ student.id }}" data-student-name="{{ student.name }}" onclick="confirmDelete(this)">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8">No students registered yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="page-card">
+        <h2>Registered Teachers</h2>
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>ID</th>
+                        <th>Department</th>
+                        <th>Designation</th>
+                        <th>Username</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for teacher in teachers %}
+                    <tr>
+                        <td>{{ teacher.name }}</td>
+                        <td>{{ teacher.email|default:'—' }}</td>
+                        <td>{{ teacher.roll_number }}</td>
+                        <td>{{ teacher.department }}</td>
+                        <td>{{ teacher.designation|default:'—' }}</td>
+                        <td>{{ teacher.username }}</td>
+                        <td>
+                            <button class="secondary-button" type="button" onclick="resetPassword({{ teacher.id }}, '{{ teacher.username }}')">Reset Password</button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6">No teachers registered yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Filter dropdown -->
+    <div class="page-card" style="margin-bottom: 24px; padding: 20px 30px;">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <label for="sectionFilter" style="margin: 0; font-weight: 700; font-size: 1rem; color: var(--text-main);">Select Section View:</label>
+            <select id="sectionFilter" onchange="filterSchedules()" style="max-width: 320px; padding: 10px 14px; margin: 0; font-size: 0.95rem;">
+                <option value="ALL">Show All Sections (List View)</option>
+                {% for section in sections %}
+                <option value="{{ section.section_name }}">{{ section.section_name }} ({{ section.year }} - {{ section.department }})</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Timetable Grid View Section -->
+    <section class="page-card" id="timetableGridSection" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
+            <h2 id="timetableGridTitle" style="margin: 0;">Weekly Timetable</h2>
+            <button class="secondary-button" onclick="switchToFlatList()" style="padding: 8px 16px; font-size: 0.85rem; margin-top: 0; width: auto;">Switch to List View</button>
+        </div>
+        <div class="table-wrapper" style="border: none; box-shadow: none; padding: 0; background: transparent;">
+            <div id="timetableGridContainer"></div>
+        </div>
+    </section>
+
+    <!-- Flat List View Section -->
+    <section class="page-card" id="flatListSection">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
+            <h2 style="margin: 0;">Class Schedules</h2>
+            <button id="switchToGridBtn" class="secondary-button" onclick="switchToGridView()" style="display: none; padding: 8px 16px; font-size: 0.85rem; margin-top: 0; width: auto;">Switch to Timetable View</button>
+        </div>
+        <div class="table-wrapper">
+            <table id="schedulesTable">
+                <thead>
+                    <tr>
+                        <th>Subject</th>
+                        <th>Teacher</th>
+                        <th>Section</th>
+                        <th>Day</th>
+                        <th>Time</th>
+                        <th>Room</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for schedule in schedules %}
+                    <tr>
+                        <td><strong>{{ schedule.subject }}</strong></td>
+                        <td>{{ schedule.teacher.name|default:schedule.teacher_name|default:'Unassigned' }}</td>
+                        <td class="schedule-section-cell">{{ schedule.section_name }}</td>
+                        <td>{{ schedule.day }}</td>
+                        <td>{{ schedule.start_time }} - {{ schedule.end_time }}</td>
+                        <td>{{ schedule.room }}</td>
+                        <td>
+                            <button class="delete-btn" type="button" 
+                                    data-schedule-id="{{ schedule.id }}" 
+                                    data-schedule-subject="{{ schedule.subject }}" 
+                                    data-schedule-teacher="{{ schedule.teacher.name|default:schedule.teacher_name|default:'Unassigned' }}" 
+                                    onclick="confirmDeleteSchedule(this)">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7">No class schedules created yet.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- Embed json schedules data -->
+    <script id="schedules-json-data" type="application/json">
+        [
+            {% for schedule in schedules %}
+            {
+                "id": {{ schedule.id }},
+                "subject": "{{ schedule.subject|escapejs }}",
+                "teacher": "{{ schedule.teacher.name|default:schedule.teacher_name|default:'Unassigned'|escapejs }}",
+                "section": "{{ schedule.section_name|escapejs }}",
+                "day": "{{ schedule.day|escapejs }}",
+                "start": "{{ schedule.start_time|escapejs }}",
+                "end": "{{ schedule.end_time|escapejs }}",
+                "room": "{{ schedule.room|escapejs }}"
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ]
+    </script>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h2>Confirm Delete</h2>
+            <p>Are you sure you want to delete student <strong id="studentNameDisplay"></strong>?</p>
+            <p class="warning-text">This action will remove all attendance records associated with this student and cannot be undone.</p>
+            <div class="modal-actions">
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="delete-confirm-btn">Delete Student</button>
+                </form>
+                <button type="button" class="cancel-btn" onclick="closeModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Schedule Confirmation Modal -->
+    <div id="deleteScheduleModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeScheduleModal()">&times;</span>
+            <h2>Confirm Delete Schedule</h2>
+            <p>Are you sure you want to delete the schedule for <strong id="scheduleSubjectDisplay"></strong> taught by <strong id="scheduleTeacherDisplay"></strong>?</p>
+            <div class="modal-actions">
+                <form id="deleteScheduleForm" method="POST" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="delete-confirm-btn">Delete Schedule</button>
+                </form>
+                <button type="button" class="cancel-btn" onclick="closeScheduleModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function confirmDelete(button) {
+            const studentId = button.getAttribute('data-student-id');
+            const studentName = button.getAttribute('data-student-name');
+            
+            document.getElementById('studentNameDisplay').textContent = studentName;
+            const deleteForm = document.getElementById('deleteForm');
+            deleteForm.action = `/delete_student/${studentId}`;
+            document.getElementById('deleteModal').style.display = 'block';
+        }
+
+        function closeModal() {
+            document.getElementById('deleteModal').style.display = 'none';
+        }
+
+        function confirmDeleteSchedule(button) {
+            const scheduleId = button.getAttribute('data-schedule-id');
+            const subject = button.getAttribute('data-schedule-subject');
+            const teacherName = button.getAttribute('data-schedule-teacher');
+            
+            document.getElementById('scheduleSubjectDisplay').textContent = subject;
+            document.getElementById('scheduleTeacherDisplay').textContent = teacherName;
+            const deleteForm = document.getElementById('deleteScheduleForm');
+            deleteForm.action = `/delete_schedule/${scheduleId}`;
+            document.getElementById('deleteScheduleModal').style.display = 'block';
+        }
+
+        function closeScheduleModal() {
+            document.getElementById('deleteScheduleModal').style.display = 'none';
+        }
+
+        // Close modal if user clicks outside of it
+        window.onclick = function(event) {
+            const modal = document.getElementById('deleteModal');
+            const scheduleModal = document.getElementById('deleteScheduleModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+            if (event.target == scheduleModal) {
+                scheduleModal.style.display = 'none';
+            }
+        }
+
+        let currentView = 'grid'; // 'grid' or 'list'
+
+        function filterSchedules() {
+            const filterValue = document.getElementById('sectionFilter').value;
+            const flatListSection = document.getElementById('flatListSection');
+            const gridSection = document.getElementById('timetableGridSection');
+            const switchToGridBtn = document.getElementById('switchToGridBtn');
+            
+            if (filterValue === 'ALL') {
+                // For Show All, always show flat list and hide grid
+                flatListSection.style.display = 'block';
+                gridSection.style.display = 'none';
+                switchToGridBtn.style.display = 'none';
+                
+                // standard flat list filter
+                const rows = document.querySelectorAll('#schedulesTable tbody tr');
+                rows.forEach(row => row.style.display = '');
+            } else {
+                // For a specific section
+                switchToGridBtn.style.display = 'block';
+                document.getElementById('timetableGridTitle').textContent = `Weekly Timetable for ${filterValue}`;
+                renderTimetableGrid(filterValue);
+                
+                if (currentView === 'grid') {
+                    gridSection.style.display = 'block';
+                    flatListSection.style.display = 'none';
+                } else {
+                    flatListSection.style.display = 'block';
+                    gridSection.style.display = 'none';
+                    
+                    // filter flat list rows
+                    const rows = document.querySelectorAll('#schedulesTable tbody tr');
+                    rows.forEach(row => {
+                        const sectionCell = row.querySelector('.schedule-section-cell');
+                        if (sectionCell && sectionCell.textContent.trim() === filterValue) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                }
+            }
+        }
+
+        function switchToFlatList() {
+            currentView = 'list';
+            filterSchedules();
+        }
+
+        function switchToGridView() {
+            currentView = 'grid';
+            filterSchedules();
+        }
+
+        function confirmDeleteScheduleFromGrid(id, subject, teacherName) {
+            document.getElementById('scheduleSubjectDisplay').textContent = subject;
+            document.getElementById('scheduleTeacherDisplay').textContent = teacherName;
+            const deleteForm = document.getElementById('deleteScheduleForm');
+            deleteForm.action = `/delete_schedule/${id}`;
+            document.getElementById('deleteScheduleModal').style.display = 'block';
+        }
+
+        function formatTime(timeStr) {
+            if (!timeStr) return '';
+            const [hours, minutes] = timeStr.split(':');
+            const h = parseInt(hours);
+            const ampm = h >= 12 ? 'pm' : 'am';
+            const displayH = h % 12 === 0 ? 12 : h % 12;
+            return `${displayH}:${minutes} ${ampm}`;
+        }
+        
+        function escapeHtml(str) {
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function getSubjectColor(subjectName) {
+            if (!subjectName) return { bg: '#ffffff', text: '#0f172a' };
+            const nameLower = subjectName.toLowerCase();
+            if (nameLower === 'leisure') {
+                return { bg: '#f8fafc', text: '#64748b' };
+            }
+            if (nameLower === 'sports') {
+                return { bg: '#ecfdf5', text: '#065f46' };
+            }
+            if (nameLower === 'library') {
+                return { bg: '#eff6ff', text: '#1e40af' };
+            }
+            
+            let hash = 0;
+            for (let i = 0; i < subjectName.length; i++) {
+                hash = subjectName.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const h = Math.abs(hash) % 360;
+            return {
+                bg: `hsl(${h}, 75%, 97%)`,
+                text: `hsl(${h}, 60%, 25%)`
+            };
+        }
+
+        function renderTimetableGrid(sectionName) {
+            const schedulesJsonElement = document.getElementById('schedules-json-data');
+            if (!schedulesJsonElement) return;
+            const schedulesData = JSON.parse(schedulesJsonElement.textContent);
+            const filtered = schedulesData.filter(s => s.section === sectionName);
+            
+            // Find most common room
+            const rooms = filtered.map(s => s.room).filter(r => r && r !== 'Playground' && r !== 'Central Library' && r !== 'Staff Room');
+            let commonRoom = '—';
+            if (rooms.length > 0) {
+                const roomCounts = {};
+                rooms.forEach(r => {
+                    roomCounts[r] = (roomCounts[r] || 0) + 1;
+                });
+                commonRoom = Object.keys(roomCounts).reduce((a, b) => roomCounts[a] > roomCounts[b] ? a : b);
+            }
+            
+            // Get nice w.e.f date (current week's Monday)
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            const monday = new Date(today);
+            const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+            monday.setDate(diff);
+            const dd = String(monday.getDate()).padStart(2, '0');
+            const mm = String(monday.getMonth() + 1).padStart(2, '0');
+            const yyyy = monday.getFullYear();
+            const wefDate = `${dd}.${mm}.${yyyy}`;
+
+            // Get unique time slots sorted chronologically
+            const slotSet = new Set();
+            filtered.forEach(s => {
+                slotSet.add(`${s.start}-${s.end}`);
+            });
+            let detectedSlots = Array.from(slotSet).sort((a, b) => {
+                const timeA = a.split('-')[0].trim();
+                const timeB = b.split('-')[0].trim();
+                const [hA, mA] = timeA.split(':').map(Number);
+                const [hB, mB] = timeB.split(':').map(Number);
+                return (hA * 60 + mA) - (hB * 60 + mB);
+            });
+            
+            // Build columns list with lunch break
+            let columns = [];
+            let insertedLunch = false;
+            
+            for (let i = 0; i < detectedSlots.length; i++) {
+                const currentSlot = detectedSlots[i];
+                columns.push(currentSlot);
+                
+                if (!insertedLunch && i < detectedSlots.length - 1) {
+                    const currentEnd = currentSlot.split('-')[1];
+                    const nextStart = detectedSlots[i+1].split('-')[0];
+                    const [endH, endM] = currentEnd.split(':').map(Number);
+                    const [nextH, nextM] = nextStart.split(':').map(Number);
+                    const endMin = endH * 60 + endM;
+                    const nextMin = nextH * 60 + nextM;
+                    
+                    if (endMin <= 750 && nextMin >= 780) { // end <= 12:30 and next >= 13:00
+                        columns.push('LUNCH');
+                        insertedLunch = true;
+                    }
+                }
+            }
+            
+            if (!insertedLunch) {
+                let insertIdx = -1;
+                for (let i = 0; i < columns.length; i++) {
+                    const startStr = columns[i].split('-')[0];
+                    const [h, m] = startStr.split(':').map(Number);
+                    const startMin = h * 60 + m;
+                    if (startMin < 750) {
+                        insertIdx = i + 1;
+                    }
+                }
+                if (insertIdx !== -1) {
+                    columns.splice(insertIdx, 0, 'LUNCH');
+                } else {
+                    columns.push('LUNCH');
+                }
+            }
+            
+            // Dynamic lunch range
+            let lunchTimeRange = "12:20 pm to 1:10 pm";
+            const lunchIdx = columns.indexOf('LUNCH');
+            if (lunchIdx > 0 && lunchIdx < columns.length - 1) {
+                const prevSlot = columns[lunchIdx - 1];
+                const nextSlot = columns[lunchIdx + 1];
+                lunchTimeRange = `${formatTime(prevSlot.split('-')[1])} to ${formatTime(nextSlot.split('-')[0])}`;
+            }
+
+            const days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+            
+            // Build Info Bar and Table
+            let html = `
+                <div class="timetable-header-info">
+                    <div class="info-item"><strong>CLASS:</strong> ${sectionName}</div>
+                    <div class="info-item"><strong>ROOM NO:</strong> ${commonRoom}</div>
+                    <div class="info-item"><strong>w.e.f:</strong> ${wefDate}</div>
+                </div>
+                <table class="timetable-table">
+                    <thead>
+                        <tr>
+                            <th>
+                                <div style="font-size: 0.75rem; font-weight: 800; line-height: 1.2; letter-spacing: 0.5px;">
+                                    <div>TIME</div>
+                                    <div style="border-top: 1px solid #1e293b; margin: 2px 8px 0; padding-top: 2px;">DAY</div>
+                                </div>
+                            </th>
+            `;
+            
+            columns.forEach(col => {
+                if (col === 'LUNCH') {
+                    html += `<th>${lunchTimeRange}<br>(LUNCH)</th>`;
+                } else {
+                    const [start, end] = col.split('-');
+                    html += `<th>${formatTime(start)} to ${formatTime(end)}</th>`;
+                }
+            });
+            
+            html += `
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            days.forEach((day, dayIdx) => {
+                html += `<tr>
+                    <td class="day-cell">${day}</td>`;
+                
+                columns.forEach(col => {
+                    if (col === 'LUNCH') {
+                        if (dayIdx === 0) {
+                            html += `<td rowspan="6" class="lunch-cell">L U N C H</td>`;
+                        }
+                    } else {
+                        const [start, end] = col.split('-');
+                        const match = filtered.find(s => s.day === day && s.start === start && s.end === end);
+                        
+                        if (match) {
+                            const isLeisure = match.subject.toLowerCase() === 'leisure';
+                            const colors = getSubjectColor(match.subject);
+                            
+                            html += `
+                                <td style="background-color: ${colors.bg}; color: ${colors.text}; font-family: inherit;">
+                                    <div class="timetable-cell-content">
+                                        <div class="subject-code">${match.subject}</div>
+                                        ${!isLeisure ? `<div class="teacher-name">${match.teacher}</div>` : ''}
+                                        <button class="grid-delete-btn" type="button" 
+                                                title="Delete Schedule"
+                                                onclick="confirmDeleteScheduleFromGrid(${match.id}, '${escapeHtml(match.subject)}', '${escapeHtml(match.teacher)}')">
+                                            &times;
+                                        </button>
+                                    </div>
+                                </td>
+                            `;
+                        } else {
+                            html += `<td></td>`;
+                        }
+                    }
+                });
+                
+                html += `</tr>`;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            `;
+            
+            document.getElementById('timetableGridContainer').innerHTML = html;
+        }
+    </script>
+
+    <script>
+        async function resetPassword(teacherId, username) {
+            if (!confirm(`Reset password for ${username}? This will generate a temporary password.`)) return;
+            const url = "{% url 'admin_reset_password' %}";
+            try {
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ teacher_id: teacherId })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    // Show the temporary password once
+                    alert(`Temporary password for ${data.username}: ${data.password}`);
+                } else {
+                    alert('Error: ' + (data.message || 'Unknown error'));
+                }
+            } catch (e) {
+                alert('Network or server error: ' + e.message);
+            }
+        }
+    </script>
+{% endblock %}

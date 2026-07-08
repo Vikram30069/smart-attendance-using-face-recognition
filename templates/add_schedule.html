@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Class Schedule{% endblock %}
+
+{% block nav %}
+    <a href="{% url 'dashboard' %}" class="secondary-button">Dashboard</a>
+    <a href="{% url 'logout' %}" class="secondary-button">Logout</a>
+{% endblock %}
+
+{% block content %}
+    <div class="card form-card">
+        <h1>Create Class Schedule</h1>
+        <p>Set up a class session for a specific section, teacher, and time slot.</p>
+
+        {% if messages %}
+            <div class="alert-container">
+                {% for message in messages %}
+                    <div class="alert {% if message.tags %}{{ message.tags }}{% endif %}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'admin_add_schedule' %}">
+            {% csrf_token %}
+            <label>Section</label>
+            <select name="section_id" required>
+                <option value="">Select section</option>
+                {% for section in sections %}
+                <option value="{{ section.id }}" {% if form.section_id == section.id %}selected{% endif %}>{{ section.section_name }} — {{ section.year }} ({{ section.department }})</option>
+                {% endfor %}
+            </select>
+
+            <label>Teacher</label>
+            <select name="teacher_id" required>
+                <option value="">Select teacher</option>
+                {% for teacher in teachers %}
+                <option value="{{ teacher.id }}" {% if form.teacher_id == teacher.id %}selected{% endif %}>{{ teacher.name }} ({{ teacher.username }})</option>
+                {% endfor %}
+            </select>
+
+            <label>Subject / Class Name</label>
+            <input type="text" name="subject" value="{{ form.subject|default:'' }}" required />
+
+            <label>Day</label>
+            <select name="day" required>
+                <option value="">Select day</option>
+                <option value="MON" {% if form.day == 'MON' %}selected{% endif %}>MON</option>
+                <option value="TUE" {% if form.day == 'TUE' %}selected{% endif %}>TUE</option>
+                <option value="WED" {% if form.day == 'WED' %}selected{% endif %}>WED</option>
+                <option value="THU" {% if form.day == 'THU' %}selected{% endif %}>THU</option>
+                <option value="FRI" {% if form.day == 'FRI' %}selected{% endif %}>FRI</option>
+                <option value="SAT" {% if form.day == 'SAT' %}selected{% endif %}>SAT</option>
+                <option value="SUN" {% if form.day == 'SUN' %}selected{% endif %}>SUN</option>
+            </select>
+
+            <label>Start Time</label>
+            <input type="time" name="start_time" value="{{ form.start_time|default:'' }}" required />
+
+            <label>End Time</label>
+            <input type="time" name="end_time" value="{{ form.end_time|default:'' }}" required />
+
+            <label>Room</label>
+            <input type="text" name="room" value="{{ form.room|default:'' }}" required placeholder="Example: N414" />
+
+            <label>Latitude (optional)</label>
+            <input type="text" name="latitude" value="{{ form.latitude|default:'' }}" placeholder="12.9715987" />
+            <small style="display:block;color:#6b7280;margin-bottom:12px;">Leave blank to use the teacher's current location when starting the session.</small>
+
+            <label>Longitude (optional)</label>
+            <input type="text" name="longitude" value="{{ form.longitude|default:'' }}" placeholder="77.594566" />
+
+            <button type="submit" class="primary-button" style="margin-top: 24px;">Create Schedule</button>
+        </form>
+    </div>
+{% endblock %}

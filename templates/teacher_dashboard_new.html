@@ -1,0 +1,521 @@
+{% extends 'base.html' %}
+
+{% block title %}Teacher Dashboard{% endblock %}
+
+{% block nav %}
+    <span class="nav-user">{{ user.name }}</span>
+    <button class="notification-bell" id="notificationBell">
+        🔔
+        <span class="notification-badge" id="notificationBadge" style="display:none;">0</span>
+    </button>
+    <a href="{{ url_for('logout') }}" class="secondary-button">Logout</a>
+{% endblock %}
+
+{% block content %}
+    <!-- Notification Toast Container -->
+    <div id="notificationContainer" class="notification-container"></div>
+
+    <div class="teacher-dashboard">
+        <!-- Teacher Info Cards -->
+        <div class="info-cards">
+            <div class="info-card teacher-card">
+                <h3>Your Name</h3>
+                <p class="info-value">{{ user.name }}</p>
+            </div>
+            <div class="info-card teacher-card">
+                <h3>Teacher ID</h3>
+                <p class="info-value">{{ user.roll_number or 'N/A' }}</p>
+            </div>
+            <div class="info-card teacher-card">
+                <h3>Department</h3>
+                <p class="info-value">{{ user.department or 'N/A' }}</p>
+            </div>
+            <div class="info-card teacher-card">
+                <h3>Sections Assigned</h3>
+                <p class="info-value">{{ sections|length }}</p>
+            </div>
+        </div>
+
+        <!-- Location permission reminder banner -->
+        <div style="margin-bottom: 12px; padding: 12px; border-radius: 10px; background: #fff7ed; border: 1px solid #ffedd5; color: #92400e; display:flex; align-items:center; gap:10px; max-width:1000px; margin-left:auto; margin-right:auto;">
+            <strong>Reminder:</strong>
+            <div>Please allow location access each time you start a session — the system captures the teacher location to enable student marking nearby.</div>
+        </div>
+
+        <!-- Today's Schedule -->
+        <section class="page-card schedule-section">
+            <h2>📅 Today's Schedule</h2>
+            <div id="teacherSessionStatus" style="margin-top: 12px; margin-bottom: 16px; color: #b91c1c; display: none; font-size: 0.95rem;"></div>
+            {% if today_schedule %}
+            <div class="today-schedule-list">
+                {% for schedule in today_schedule %}
+                <div class="schedule-card">
+                    <div class="schedule-header">
+                        <div class="schedule-time-block">
+                            <span class="time-start">{{ schedule.start_time }}</span>
+                            <span class="time-end">{{ schedule.end_time }}</span>
+                        </div>
+                        <div class="schedule-info">
+                            <h3>{{ schedule.subject }}</h3>
+                            <p class="section-info">
+                                <strong>Section:</strong> {{ schedule.section_name }}
+                            </p>
+                            <p class="schedule-details">
+                                <span>📍 {{ schedule.room }}</span>
+                                <span>👥 {{ schedule.year }}</span>
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="schedule-actions">
+                        <form method="post" action="{{ url_for('start_session') }}" class="start-session-form" onsubmit="return ensureLocationProvided(event, {{ schedule.id }})">
+                            <input type="hidden" name="class_id" value="{{ schedule.id }}" />
+                            <input type="hidden" name="latitude" id="teacher-lat-{{ schedule.id }}" />
+                            <input type="hidden" name="longitude" id="teacher-lon-{{ schedule.id }}" />
+                            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+                                <small class="location-status" id="loc-status-{{ schedule.id }}" style="color:#b91c1c;display:none;font-size:0.85rem;">Waiting for location permission...</small>
+                                <button type="submit" class="btn-start-session" id="start-btn-{{ schedule.id }}" title="Allow location when prompted — required to set the session location" disabled>
+                                    🚀 Start Attendance Session
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="no-data">No classes scheduled for today.</p>
+            {% endif %}
+        </section>
+
+        <!-- All Your Classes -->
+        <section class="page-card">
+            <h2>📚 All Your Classes</h2>
+            <div class="sections-grid">
+                {% for section in sections %}
+                <div class="section-card">
+                    <div class="section-header">
+                        <h3>{{ section.section_name }}</h3>
+                        <span class="section-year">{{ section.year }}</span>
+                    </div>
+                    <p class="section-dept">{{ section.department }}</p>
+                    
+                    <div class="classes-list">
+                        {% set section_classes = all_classes|selectattr('section_id', 'equalto', section.id)|list %}
+                        {% if section_classes %}
+                            {% for cls in section_classes %}
+                            <div class="class-row">
+                                <span class="class-day">{{ cls.day }}</span>
+                                <span class="class-time">{{ cls.start_time }}</span>
+                                <span class="class-subject">{{ cls.subject }}</span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <p class="no-classes">No classes scheduled</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+
+    <style>
+        .teacher-dashboard {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .info-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .info-card {
+            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+        }
+
+        .info-card h3 {
+            margin: 0 0 8px 0;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .info-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .schedule-section {
+            margin-bottom: 24px;
+        }
+
+        .today-schedule-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .schedule-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #f0f4f8 100%);
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            transition: all 0.3s ease;
+            border-left: 4px solid #8b5cf6;
+        }
+
+        .schedule-card:hover {
+            box-shadow: 0 8px 24px rgba(139, 92, 246, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .schedule-header {
+            display: flex;
+            gap: 16px;
+            flex: 1;
+        }
+
+        .schedule-time-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            min-width: 80px;
+        }
+
+        .time-start {
+            font-weight: 700;
+            color: #0f172a;
+            font-size: 1rem;
+        }
+
+        .time-end {
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        .schedule-info {
+            flex: 1;
+        }
+
+        .schedule-info h3 {
+            margin: 0 0 8px 0;
+            color: #0f172a;
+            font-size: 1.2rem;
+        }
+
+        .section-info {
+            margin: 4px 0;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .schedule-details {
+            display: flex;
+            gap: 16px;
+            margin: 8px 0 0 0;
+            color: #64748b;
+            font-size: 0.85rem;
+        }
+
+        .schedule-actions {
+            flex-shrink: 0;
+        }
+
+        .start-session-form {
+            margin: 0;
+        }
+
+        .btn-start-session {
+            background: linear-gradient(135deg, #8b5cf6, #6366f1);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .btn-start-session:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(139, 92, 246, 0.3);
+        }
+
+        .btn-start-session:active {
+            transform: translateY(0);
+        }
+
+        .sections-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .section-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .section-card:hover {
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+            border-color: #8b5cf6;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            gap: 8px;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #f0f4f8;
+        }
+
+        .section-header h3 {
+            margin: 0;
+            color: #0f172a;
+            font-size: 1.1rem;
+        }
+
+        .section-year {
+            background: #e0e7ff;
+            color: #6366f1;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .section-dept {
+            color: #64748b;
+            font-size: 0.85rem;
+            margin: 0 0 12px 0;
+        }
+
+        .classes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .class-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            padding: 8px;
+            background: #f8fafc;
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+
+        .class-day {
+            background: #8b5cf6;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            min-width: 35px;
+            text-align: center;
+        }
+
+        .class-time {
+            color: #64748b;
+            font-weight: 600;
+            min-width: 50px;
+        }
+
+        .class-subject {
+            color: #0f172a;
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .no-data,
+        .no-classes {
+            text-align: center;
+            color: #94a3b8;
+            padding: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .schedule-card {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .schedule-header {
+                flex-direction: column;
+            }
+
+            .schedule-details {
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .schedule-actions {
+                width: 100%;
+            }
+
+            .btn-start-session {
+                width: 100%;
+            }
+
+            .sections-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Inherit notification styles from student dashboard */
+        .notification-container {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-width: 400px;
+        }
+
+        .notification-toast {
+            background: white;
+            border-radius: 10px;
+            padding: 16px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+            border-left: 4px solid #3b82f6;
+            animation: slideIn 0.3s ease;
+            display: flex;
+            gap: 12px;
+            align-items: start;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+
+    <script>
+        function updateTeacherSessionStatus(text, isError = true) {
+            const statusEl = document.getElementById('teacherSessionStatus');
+            if (!statusEl) return;
+            if (!text) {
+                statusEl.style.display = 'none';
+                return;
+            }
+            statusEl.style.display = 'block';
+            statusEl.style.color = isError ? '#b91c1c' : '#047857';
+            statusEl.textContent = text;
+        }
+
+        // Get location and update hidden inputs
+        async function setTeacherLocation() {
+            if (!navigator.geolocation) {
+                console.warn('Geolocation not available');
+                updateTeacherSessionStatus('Geolocation is not available in this browser. The session cannot start until location access is available.', true);
+                document.querySelectorAll('.location-status').forEach(s => {
+                    s.style.display = 'block';
+                    s.textContent = 'Geolocation not available in this browser.';
+                });
+                document.querySelectorAll('button[id^="start-btn-"]').forEach(btn => btn.disabled = true);
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition((position) => {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+
+                // Update all location inputs
+                document.querySelectorAll('input[id^="teacher-lat-"]').forEach((input) => {
+                    input.value = lat;
+                });
+                document.querySelectorAll('input[id^="teacher-lon-"]').forEach((input) => {
+                    input.value = lon;
+                });
+
+                // Enable all start buttons and update statuses
+                document.querySelectorAll('button[id^="start-btn-"]').forEach(btn => btn.disabled = false);
+                document.querySelectorAll('.location-status').forEach(s => {
+                    s.style.display = 'none';
+                });
+                updateTeacherSessionStatus('Location acquired. You can now start the attendance session.', false);
+            }, (error) => {
+                console.error('Error getting location:', error);
+                document.querySelectorAll('.location-status').forEach(s => {
+                    s.style.display = 'block';
+                    if (error.code === error.PERMISSION_DENIED) {
+                        s.textContent = 'Please allow location access to start the session.';
+                    } else {
+                        s.textContent = 'Unable to determine location. Try again.';
+                    }
+                });
+                document.querySelectorAll('button[id^="start-btn-"]').forEach(btn => btn.disabled = true);
+                if (error && error.code === error.PERMISSION_DENIED) {
+                    updateTeacherSessionStatus('Location permission denied. Please allow location access for this site.', true);
+                } else {
+                    updateTeacherSessionStatus('Unable to determine location. Reload the page and try again.', true);
+                }
+            }, { enableHighAccuracy: true, timeout: 10000 });
+        }
+
+        // Call on page load
+        setTeacherLocation();
+
+        // Update location every 10 seconds
+        setInterval(setTeacherLocation, 10000);
+
+        // Prevent form submission if location not provided for that class
+        function ensureLocationProvided(event, scheduleId) {
+            const lat = document.getElementById('teacher-lat-' + scheduleId).value;
+            const lon = document.getElementById('teacher-lon-' + scheduleId).value;
+            if (!lat || !lon) {
+                event.preventDefault();
+                const status = document.getElementById('loc-status-' + scheduleId);
+                if (status) {
+                    status.style.display = 'block';
+                    status.textContent = 'Please allow location access before starting the session.';
+                } else {
+                    alert('Please allow location access before starting the session.');
+                }
+                updateTeacherSessionStatus('Please allow location access before starting the session.', true);
+                return false;
+            }
+            return true;
+        }
+
+        // Notification bell
+        document.getElementById('notificationBell').addEventListener('click', function() {
+            alert('Session notifications will appear here!');
+        });
+    </script>
+{% endblock %}
